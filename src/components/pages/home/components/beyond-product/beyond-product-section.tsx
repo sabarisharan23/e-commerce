@@ -33,7 +33,7 @@ export function BeyondProductSection() {
           <div className="relative overflow-hidden rounded-[28px]">
             <div className="relative min-h-[620px]">
               <Image
-                src="/home/hero-millet-flour.png"
+                src="/images/herosection2.png"
                 alt="Freshly ground flour in sacks."
                 fill
                 sizes="100vw"

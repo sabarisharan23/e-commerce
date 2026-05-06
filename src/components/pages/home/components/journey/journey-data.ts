@@ -15,7 +15,7 @@ export type JourneyItem = {
 const journeyItemSeeds = [
   {
     id: "doctor-seeds",
-    mediaSrc: "/home/journey/doctor-seeds.png",
+    mediaSrc: "/images/foodjourney1.png",
     mediaAlt: "Video thumbnail discussing the best timing for chia seeds.",
     title: "Timing for Best Seeds",
     productId: "diet-choize-chia-seed-finger-millet-flour",
@@ -24,7 +24,7 @@ const journeyItemSeeds = [
   },
   {
     id: "salt-amount",
-    mediaSrc: "/home/journey/salt-amount.png",
+    mediaSrc: "/images/foodjourney2.png",
     mediaAlt: "Video thumbnail about the amount of salt to use while cooking.",
     title: "The Right Amount of Salt",
     productId: "nutri-salt-moringa-infusion",
@@ -33,7 +33,7 @@ const journeyItemSeeds = [
   },
   {
     id: "wheat-vs-ragi",
-    mediaSrc: "/home/journey/wheat-vs-ragi.png",
+    mediaSrc: "/images/foodjourney3.png",
     mediaAlt: "Video thumbnail comparing ragi roti and whole wheat chapati.",
     title: "Ragi vs Whole Wheat",
     productId: "very-nize-wheat-cookies",
@@ -42,7 +42,7 @@ const journeyItemSeeds = [
   },
   {
     id: "salt-amount-2",
-    mediaSrc: "/home/journey/salt-amount-2.png",
+    mediaSrc: "/images/foodjourney4.png",
     mediaAlt: "A second video thumbnail about the amount of salt to use while cooking.",
     title: "Salt, Taste, and Balance",
     productId: "nutri-salt-moringa-infusion",

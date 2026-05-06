@@ -27,7 +27,7 @@ export function NewsletterSection() {
           className="relative overflow-hidden rounded-[24px] px-5 py-10 sm:px-8 lg:px-10 lg:py-14"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(19,58,25,0.74), rgba(19,58,25,0.74)), url('/home/newsletter/newsletter-bg.png')",
+              "linear-gradient(rgba(19,58,25,0.74), rgba(19,58,25,0.74)), url('/images/milletnutrition.png')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
