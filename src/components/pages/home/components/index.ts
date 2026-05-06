@@ -1,0 +1,12 @@
+export { BeyondProductSection } from "./beyond-product/beyond-product-section";
+export { BrandStripSection } from "./brand-strip/brand-strip-section";
+export { HeroCarousel } from "./carousel/hero-carousel";
+export { CustomerFeedbackSection } from "./customer-feedback/customer-feedback-section";
+export { DealOfDaySection } from "./deal-of-day/deal-of-day-section";
+export { FarmBundleSection } from "./farm-bundle/farm-bundle-section";
+export { FeaturedCategoriesSection } from "./featured-categories/featured-categories-section";
+export { JourneySection } from "./journey/journey-section";
+export { NewArrivalsSection } from "./new-arrivals/new-arrivals-section";
+export { NewsletterSection } from "./newsletter/newsletter-section";
+export { ShopByConcernSection } from "./shop-by-concern/shop-by-concern-section";
+export { TopPicksSection } from "./top-picks/top-picks-section";
