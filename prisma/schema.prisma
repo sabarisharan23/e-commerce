@@ -45,6 +45,7 @@ model Product {
   updatedAt        DateTime @updatedAt
   categoryRef      Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tagRef           ProductTag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  orderItems       OrderItem[]
 
   @@map("products")
 }
@@ -74,4 +75,82 @@ model ProductTag {
   products    Product[]
 
   @@map("product_tags")
+}
+
+model User {
+  id                      String   @id @default(cuid())
+  authId                  String   @unique
+  email                   String   @unique
+  name                    String
+  phone                   String?
+  membership              String   @default("Standard Member")
+  communicationPreference String?
+  addressLabel            String?
+  addressLines            Json     @default("[]")
+  avatarInitials          String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  lastLoginAt             DateTime?
+  orders                  Order[]
+
+  @@map("users")
+}
+
+model Offer {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  title       String
+  description String?
+  type        String
+  value       Decimal   @db.Decimal(10, 2)
+  maxDiscount Decimal?  @db.Decimal(10, 2)
+  minSubtotal Decimal   @default(0) @db.Decimal(10, 2)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  status      String    @default("ACTIVE")
+  usageLimit  Int?
+  usedCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orders      Order[]
+
+  @@map("offers")
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerId     String?
+  offer       Offer?      @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  offerCode   String?
+  status      String      @default("PLACED")
+  subtotal    Decimal     @db.Decimal(10, 2)
+  discount    Decimal     @default(0) @db.Decimal(10, 2)
+  deliveryFee Decimal     @default(0) @db.Decimal(10, 2)
+  tax         Decimal     @default(0) @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSlug   String
+  productName   String
+  productImage  String
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  quantity      Int
+  lineTotal     Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+
+  @@map("order_items")
 }

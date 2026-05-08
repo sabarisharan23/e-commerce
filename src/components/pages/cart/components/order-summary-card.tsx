@@ -61,11 +61,15 @@ export function OrderSummaryCard({
   deliveryFee,
   tax,
   discount,
+  isCheckingOut = false,
+  onCheckout,
 }: {
   subtotal: number;
   deliveryFee: number;
   tax: number;
   discount: number;
+  isCheckingOut?: boolean;
+  onCheckout?: () => void;
 }) {
   const total = subtotal + deliveryFee + tax - discount;
 
@@ -109,9 +113,11 @@ export function OrderSummaryCard({
 
       <button
         type="button"
+        disabled={isCheckingOut}
+        onClick={onCheckout}
         className="mt-8 inline-flex h-14 w-full items-center justify-center gap-3 rounded-[18px] bg-[#4f7d49] px-6 text-[1.05rem] font-semibold text-white shadow-[0_18px_32px_rgba(79,125,73,0.25)] transition-colors hover:bg-[#41693c]"
       >
-        <span>Proceed to Checkout</span>
+        <span>{isCheckingOut ? "Placing Order..." : "Proceed to Checkout"}</span>
         <ArrowRightIcon />
       </button>
 

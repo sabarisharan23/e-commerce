@@ -6,3 +6,6 @@ export * from "./http/route-handler";
 export * from "./observability/logger";
 export * from "./security/password";
 export * from "./catalog/storefront-catalog-service";
+export * from "./offers/offer-service";
+export * from "./orders/order-service";
+export * from "./users/user-service";

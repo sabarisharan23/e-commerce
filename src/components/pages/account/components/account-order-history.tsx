@@ -1,11 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { accountOrders, type OrderHistoryRecord, type OrderStatus } from "../account-data";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/components/shared";
+import type { OrderHistoryRecord, OrderStatus } from "../account-data";
 
 type OrderFilter = "all" | "in-progress" | "completed";
 
 const ROWS_PER_PAGE = 4;
+
+type OrderApiDto = {
+  createdAt: string;
+  items: Array<{
+    productName: string;
+    quantity: number;
+  }>;
+  orderNumber: string;
+  status: string;
+  total: number;
+};
+
+type OrdersResponse =
+  | { data: OrderApiDto[]; success: true }
+  | { error: { message: string }; success: false };
 
 const filterOptions: Array<{ id: OrderFilter; label: string }> = [
   { id: "all", label: "All Orders" },
@@ -62,6 +78,46 @@ function formatDateLabel(date: string) {
       <span>{year}</span>
     </>
   );
+}
+
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    currency: "INR",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
+
+function normalizeStatus(status: string): OrderStatus {
+  if (status === "PLACED" || status === "PROCESSING") {
+    return "in-progress";
+  }
+
+  if (status === "COMPLETED") {
+    return "completed";
+  }
+
+  return "delivered";
+}
+
+function toOrderHistoryRecord(order: OrderApiDto): OrderHistoryRecord {
+  const firstItem = order.items[0];
+  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return {
+    date: new Intl.DateTimeFormat("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(order.createdAt)),
+    id: order.orderNumber,
+    itemMeta: `${itemCount} item${itemCount === 1 ? "" : "s"} total`,
+    itemName: firstItem?.productName ?? "Order items",
+    orderId: `#${order.orderNumber}`,
+    status: normalizeStatus(order.status),
+    total: formatPrice(order.total),
+  };
 }
 
 function OrderHistoryTable({
@@ -167,22 +223,72 @@ function OrderHistoryTable({
 }
 
 export function AccountOrderHistory() {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [orders, setOrders] = useState<OrderHistoryRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setOrders([]);
+      return;
+    }
+
+    let active = true;
+
+    setIsLoading(true);
+    setError(null);
+
+    fetch(`/api/v1/orders?userAuthId=${encodeURIComponent(user.id)}`)
+      .then(async (response) => {
+        const body = (await response.json()) as OrdersResponse;
+
+        if (!response.ok || !body.success) {
+          throw new Error(body.success ? "Could not load orders." : body.error.message);
+        }
+
+        return body.data.map(toOrderHistoryRecord);
+      })
+      .then((records) => {
+        if (active) {
+          setOrders(records);
+        }
+      })
+      .catch((loadError) => {
+        if (active) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Could not load orders.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "all") {
-      return accountOrders;
+      return orders;
     }
 
     if (activeFilter === "completed") {
-      return accountOrders.filter(
+      return orders.filter(
         (order) => order.status === "completed" || order.status === "delivered",
       );
     }
 
-    return accountOrders.filter((order) => order.status === "in-progress");
-  }, [activeFilter]);
+    return orders.filter((order) => order.status === "in-progress");
+  }, [activeFilter, orders]);
 
   const totalPages = Math.max(Math.ceil(filteredOrders.length / ROWS_PER_PAGE), 1);
   const safePage = Math.min(currentPage, totalPages);
@@ -227,7 +333,21 @@ export function AccountOrderHistory() {
       </div>
 
       <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
-        <OrderHistoryTable orders={visibleOrders} />
+        {isLoading ? (
+          <div className="px-6 py-12 text-center text-base font-semibold text-[#71829a]">
+            Loading your orders...
+          </div>
+        ) : error ? (
+          <div className="px-6 py-12 text-center text-base font-semibold text-[#be3a45]">
+            {error}
+          </div>
+        ) : visibleOrders.length === 0 ? (
+          <div className="px-6 py-12 text-center text-base font-semibold text-[#71829a]">
+            No orders found for this account yet.
+          </div>
+        ) : (
+          <OrderHistoryTable orders={visibleOrders} />
+        )}
 
         <div className="flex flex-col gap-4 border-t border-[#edf1f6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-base font-medium text-[#7b89a0]">

@@ -21,50 +21,84 @@ function TicketIcon() {
   );
 }
 
-const COUPONS: Record<string, { type: "percent" | "flat"; value: number }> = {
-  THENI10: { type: "percent", value: 10 },
-  SAVE100: { type: "flat", value: 100 },
+export type AppliedCoupon = {
+  code: string;
+  discount: number;
 };
 
-export function getCouponDiscount(code: string, subtotal: number) {
-  const coupon = COUPONS[code.toUpperCase()];
-
-  if (!coupon) {
-    return 0;
-  }
-
-  if (coupon.type === "percent") {
-    return Math.round((subtotal * coupon.value) / 100);
-  }
-
-  return Math.min(coupon.value, subtotal);
-}
+type CouponValidationResponse =
+  | {
+      data: {
+        code: string;
+        discount: number;
+        message: string;
+      };
+      success: true;
+    }
+  | {
+      error: {
+        message: string;
+      };
+      success: false;
+    };
 
 export function CouponPanel({
   subtotal,
-  onDiscountChange,
+  onCouponChange,
 }: {
   subtotal: number;
-  onDiscountChange: (discount: number) => void;
+  onCouponChange: (coupon: AppliedCoupon | null) => void;
 }) {
   const [couponCode, setCouponCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     const trimmed = couponCode.trim().toUpperCase();
-    const discount = getCouponDiscount(trimmed, subtotal);
 
-    if (!trimmed || discount === 0) {
-      onDiscountChange(0);
+    if (!trimmed) {
+      onCouponChange(null);
       setIsError(true);
       setMessage("Enter a valid coupon code.");
       return;
     }
 
-    onDiscountChange(discount);
+    setIsApplying(true);
     setIsError(false);
-    setMessage(`${trimmed} applied successfully.`);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/v1/offers/validate", {
+        body: JSON.stringify({ code: trimmed, subtotal }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const body = (await response.json()) as CouponValidationResponse;
+
+      if (!response.ok || !body.success) {
+        throw new Error(
+          body.success ? "Coupon could not be applied." : body.error.message,
+        );
+      }
+
+      onCouponChange({
+        code: body.data.code,
+        discount: body.data.discount,
+      });
+      setIsError(false);
+      setMessage(body.data.message);
+    } catch (error) {
+      onCouponChange(null);
+      setIsError(true);
+      setMessage(
+        error instanceof Error ? error.message : "Coupon could not be applied.",
+      );
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   return (
@@ -87,9 +121,10 @@ export function CouponPanel({
         <button
           type="button"
           onClick={applyCoupon}
+          disabled={isApplying}
           className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#4f7d49] px-7 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#41693c]"
         >
-          Apply
+          {isApplying ? "Applying" : "Apply"}
         </button>
       </div>
 

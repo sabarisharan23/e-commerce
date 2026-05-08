@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -150,6 +151,32 @@ function createSignedUpUser(name: string, email: string): AuthUser {
   };
 }
 
+function syncUserToDatabase(user: AuthUser | null) {
+  if (!user) {
+    return;
+  }
+
+  void fetch("/api/v1/users/upsert", {
+    body: JSON.stringify({
+      addressLabel: user.addressLabel,
+      addressLines: user.addressLines,
+      authId: user.id,
+      avatarInitials: user.avatarInitials,
+      communicationPreference: user.communicationPreference,
+      email: user.email,
+      membership: user.membership,
+      name: user.name,
+      phone: user.phone,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  }).catch(() => {
+    // Login should not fail just because persistence is temporarily unavailable.
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const user = useSyncExternalStore(subscribe, readAuth, () => null);
   const isReady = useSyncExternalStore(
@@ -157,6 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => true,
     () => false,
   );
+
+  useEffect(() => {
+    syncUserToDatabase(user);
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
