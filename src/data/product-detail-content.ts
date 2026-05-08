@@ -1,4 +1,4 @@
-import { allProducts, getProductById, getProductsByIds } from "@/data/products";
+import type { ProductDetails } from "@/components/shared";
 
 export type ProductVariant = {
   id: string;
@@ -160,6 +160,14 @@ function toSentenceCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function toKebabCase(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 function buildGenericReviews(productName: string): ProductReview[] {
   return [
     {
@@ -186,18 +194,11 @@ function buildGenericReviews(productName: string): ProductReview[] {
   ];
 }
 
-export function getProductDetailContent(productId: string): ProductDetailContent {
-  const curated = curatedDetailContent[productId];
-
-  if (curated) {
-    return curated;
-  }
-
-  const product = getProductById(productId);
-  const relatedProducts = allProducts
-    .filter((item) => item.category === product.category && item.id !== product.id)
-    .slice(0, 4)
-    .map((item) => item.id);
+function buildGenericDetailContent(product: ProductDetails): ProductDetailContent {
+  const keyBenefits =
+    product.highlights.length > 0
+      ? product.highlights
+      : [product.shortDescription || product.description];
 
   return {
     badgeLabel: toSentenceCase(product.category),
@@ -223,14 +224,14 @@ export function getProductDetailContent(productId: string): ProductDetailContent
     ],
     variants: [
       {
-        id: product.weight.toLowerCase().replace(/\s+/g, "-"),
+        id: toKebabCase(product.weight) || "default",
         label: product.weight,
         price: product.price,
         originalPrice: product.originalPrice,
       },
     ],
-    keyBenefits: product.highlights,
-    ingredients: product.highlights.slice(0, 3),
+    keyBenefits,
+    ingredients: keyBenefits.slice(0, 3),
     howToUse: [
       `Use ${product.name} in everyday breakfasts and simple home recipes.`,
       "Stir into porridges, batter mixes, or nourishing drinks.",
@@ -241,7 +242,7 @@ export function getProductDetailContent(productId: string): ProductDetailContent
       "Seal the pack tightly after each use.",
     ],
     netWeightOptions: [product.weight],
-    healthBenefits: product.highlights.map((highlight) => ({
+    healthBenefits: keyBenefits.map((highlight) => ({
       title: highlight,
       description: product.shortDescription,
     })),
@@ -249,12 +250,35 @@ export function getProductDetailContent(productId: string): ProductDetailContent
       src: product.imageSrc,
       alt: product.imageAlt,
     },
-    recommendedProductIds:
-      relatedProducts.length > 0
-        ? relatedProducts
-        : getProductsByIds(
-            allProducts.filter((item) => item.id !== product.id).slice(0, 4).map((item) => item.id),
-          ).map((item) => item.id),
+    recommendedProductIds: [],
     reviews: buildGenericReviews(product.name),
+  };
+}
+
+export function getProductDetailContent(product: ProductDetails): ProductDetailContent {
+  const generic = buildGenericDetailContent(product);
+  const curated = curatedDetailContent[product.id];
+
+  if (!curated) {
+    return generic;
+  }
+
+  return {
+    ...generic,
+    badgeLabel: curated.badgeLabel,
+    galleryImages: [
+      generic.galleryImages[0],
+      ...curated.galleryImages.filter((image) => image.src !== generic.galleryImages[0].src),
+    ].slice(0, 4),
+    healthBenefits: curated.healthBenefits,
+    healthBenefitsImage: curated.healthBenefitsImage,
+    howToUse: curated.howToUse,
+    ingredients: curated.ingredients,
+    keyBenefits: curated.keyBenefits,
+    ratingCount: curated.ratingCount,
+    recommendedProductIds: curated.recommendedProductIds,
+    reviews: curated.reviews,
+    storageInstructions: curated.storageInstructions,
+    summary: curated.summary,
   };
 }

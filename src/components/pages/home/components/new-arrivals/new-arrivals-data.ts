@@ -1,7 +1,6 @@
 import type {
   ProductShowcaseSectionConfig,
 } from "@/components/shared";
-import { getProductsByIds } from "@/data/products";
 
 export const newArrivalsSection: ProductShowcaseSectionConfig = {
   title: "New Arrivals",
@@ -14,9 +13,9 @@ export const newArrivalsSection: ProductShowcaseSectionConfig = {
   },
 };
 
-export const newArrivalsProducts = getProductsByIds([
+export const newArrivalsProductIds = [
   "millet-vita-traditional-health-mix",
   "diet-choize-quinoa-sorghum-flour",
   "uyirsathu-sathumavu",
   "bamboo-rice-quinoa-puttu-mix",
-]);
+];

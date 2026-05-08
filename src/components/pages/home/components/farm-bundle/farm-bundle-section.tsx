@@ -4,9 +4,9 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useCart } from "@/components/shared";
 import {
-  farmBundleHeroProducts,
-  farmBundleItems,
   farmBundleSection,
+  type FarmBundleHeroProduct,
+  type FarmBundleItem,
 } from "./farm-bundle-data";
 
 function formatPrice(value: number) {
@@ -35,10 +35,18 @@ function CheckIcon({ checked }: { checked: boolean }) {
   ) : null;
 }
 
-export function FarmBundleSection() {
+type FarmBundleSectionProps = {
+  heroProducts: FarmBundleHeroProduct[];
+  items: FarmBundleItem[];
+};
+
+export function FarmBundleSection({
+  heroProducts,
+  items,
+}: FarmBundleSectionProps) {
   const { addItem } = useCart();
   const [selectedIds, setSelectedIds] = useState<string[]>(
-    farmBundleItems
+    items
       .filter((item) => item.defaultSelected)
       .map((item) => item.id),
   );
@@ -47,10 +55,10 @@ export function FarmBundleSection() {
 
   const totalPrice = useMemo(
     () =>
-      farmBundleItems
+      items
         .filter((item) => selectedIds.includes(item.id))
         .reduce((sum, item) => sum + item.price, 0),
-    [selectedIds],
+    [items, selectedIds],
   );
 
   const toggleItem = (itemId: string) => {
@@ -83,7 +91,7 @@ export function FarmBundleSection() {
               </div>
 
               <div className="grid grid-cols-3 gap-3 sm:gap-5">
-                {farmBundleHeroProducts.map((product) => (
+                {heroProducts.map((product) => (
                   <div
                     key={product.id}
                     className="relative aspect-[0.72] overflow-hidden rounded-[18px]"
@@ -109,7 +117,7 @@ export function FarmBundleSection() {
             </div>
 
             <div className="divide-y divide-[#ebeff5]">
-              {farmBundleItems.map((item) => {
+              {items.map((item) => {
                 const checked = selectedIds.includes(item.id);
 
                 return (
@@ -171,7 +179,7 @@ export function FarmBundleSection() {
                   type="button"
                   disabled={selectedCount === 0}
                   onClick={() => {
-                    farmBundleItems
+                    items
                       .filter((item) => selectedIds.includes(item.id))
                       .forEach((item) =>
                         addItem({
@@ -179,6 +187,7 @@ export function FarmBundleSection() {
                           name: item.name,
                           imageSrc: item.imageSrc,
                           price: item.price,
+                          href: item.href,
                         }),
                       );
                   }}

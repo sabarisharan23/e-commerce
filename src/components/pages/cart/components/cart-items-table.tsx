@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import type { CartItem } from "@/components/shared";
+import type { HydratedCartItem } from "@/components/shared/storefront-product-hydration";
 import { formatPrice, getPackLabel } from "./cart-shared";
 
 function TrashIcon() {
@@ -62,7 +62,7 @@ export function CartItemsTable({
   updateQuantity,
   removeItem,
 }: {
-  items: CartItem[];
+  items: HydratedCartItem[];
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
 }) {
@@ -97,7 +97,10 @@ export function CartItemsTable({
                   {item.name}
                 </h2>
                 <p className="mt-1 text-sm font-medium text-[#7d8ea7]">
-                  {getPackLabel(item.name)}
+                  {item.weight ? `${item.weight} Pack` : getPackLabel(item.name)}
+                </p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#4f7d49]">
+                  {item.stockStatus}
                 </p>
               </div>
             </div>

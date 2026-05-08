@@ -1,7 +1,6 @@
 import type {
   ProductShowcaseSectionConfig,
 } from "@/components/shared";
-import { getProductsByIds } from "@/data/products";
 
 export const topPicksSection: ProductShowcaseSectionConfig = {
   title: "Top Pick For You!",
@@ -14,9 +13,9 @@ export const topPicksSection: ProductShowcaseSectionConfig = {
   },
 };
 
-export const topPicksProducts = getProductsByIds([
+export const topPicksProductIds = [
   "amudhu-bajra-bamboo-rice-koozh-mix",
   "karumponnu-black-kavuni-kanji-mix",
   "foxtail-millet-quinoa-puttu-podi",
   "mappillai-samba-illuppai-poo-samba-laddu-mix",
-]);
+];

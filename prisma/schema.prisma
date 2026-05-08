@@ -27,6 +27,8 @@ model Product {
   name             String
   shortDescription String
   description      String
+  categoryId       String?
+  tagId            String?
   category         String
   categoryTag      String
   imageSrc         String
@@ -41,6 +43,35 @@ model Product {
   highlights       Json     @default("[]")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  categoryRef      Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tagRef           ProductTag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
 
   @@map("products")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String
+  parentId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+
+  @@map("categories")
+}
+
+model ProductTag {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@map("product_tags")
 }

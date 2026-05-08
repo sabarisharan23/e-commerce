@@ -1,5 +1,8 @@
 import { ProductsPage } from "@/components/pages/products";
-import { productCategoriesWithProducts } from "@/data/products";
+import {
+  listStorefrontCategoriesWithProducts,
+  listStorefrontProducts,
+} from "@/server";
 
 type ProductsRouteProps = {
   searchParams: Promise<{
@@ -10,11 +13,21 @@ type ProductsRouteProps = {
 export default async function ProductsRoute({ searchParams }: ProductsRouteProps) {
   const { category } = await searchParams;
   const categoryId = Array.isArray(category) ? category[0] : category;
-  const initialCategoryId = productCategoriesWithProducts.some(
+  const [products, categoriesWithProducts] = await Promise.all([
+    listStorefrontProducts(),
+    listStorefrontCategoriesWithProducts(),
+  ]);
+  const initialCategoryId = categoriesWithProducts.some(
     (item) => item.id === categoryId,
   )
     ? categoryId
     : null;
 
-  return <ProductsPage initialCategoryId={initialCategoryId} />;
+  return (
+    <ProductsPage
+      categoriesWithProducts={categoriesWithProducts}
+      initialCategoryId={initialCategoryId}
+      products={products}
+    />
+  );
 }

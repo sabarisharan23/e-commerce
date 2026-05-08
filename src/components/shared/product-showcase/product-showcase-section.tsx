@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/shared/cart/cart-provider";
 import { useWishlist } from "@/components/shared/wishlist/wishlist-provider";
-import { getProductHref } from "@/data/products";
 import type {
   ProductDetails,
   ProductShowcaseSectionConfig,
@@ -154,8 +153,12 @@ function getCartItem(product: ProductDetails) {
     name: product.name,
     imageSrc: product.imageSrc,
     price: product.price,
-    href: getProductHref(product.id),
+    href: getProductHref(product),
   };
+}
+
+function getProductHref(product: ProductDetails) {
+  return product.href && product.href !== "#" ? product.href : `/products/${product.id}`;
 }
 
 function useCountdown(target?: string) {
@@ -343,7 +346,7 @@ function QuickViewModal({
                     imageSrc: product.imageSrc,
                     price: product.price,
                     originalPrice: product.originalPrice,
-                    href: getProductHref(product.id),
+                    href: getProductHref(product),
                     category: product.category,
                   })
                 }
@@ -397,7 +400,7 @@ function ProductCard({
               imageSrc: product.imageSrc,
               price: product.price,
               originalPrice: product.originalPrice,
-              href: getProductHref(product.id),
+              href: getProductHref(product),
               category: product.category,
             })
           }
@@ -421,7 +424,7 @@ function ProductCard({
       </div>
 
       <Link
-        href={getProductHref(product.id)}
+        href={getProductHref(product)}
         target="_blank"
         rel="noopener noreferrer"
         className="relative block min-h-[240px] overflow-hidden rounded-[18px] bg-[#f8f9f5]"
@@ -437,7 +440,7 @@ function ProductCard({
 
       <div className="mt-5 flex flex-1 flex-col">
         <Link
-          href={getProductHref(product.id)}
+          href={getProductHref(product)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xl font-medium leading-8 text-[#446a42]"

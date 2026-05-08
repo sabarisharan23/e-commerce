@@ -50,6 +50,14 @@ npm run prisma:push
 npm run prisma:generate
 ```
 
+To seed or re-sync the current static storefront catalog into the configured
+database, run:
+
+```bash
+npm run catalog:sync -- --dry-run
+npm run catalog:sync
+```
+
 After pushing the schema, open the configured PostgreSQL database in DBeaver.
 With the default `.env.example`, that is the `theni-store` database on
 `localhost:5432`.

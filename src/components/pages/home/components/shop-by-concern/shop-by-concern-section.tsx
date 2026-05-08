@@ -2,15 +2,21 @@
 
 import { useState } from "react";
 import { ProductShowcaseSection } from "@/components/shared";
-import { concernTabsWithProducts } from "./shop-by-concern-data";
+import type { ConcernTabWithProducts } from "./shop-by-concern-data";
 
-export function ShopByConcernSection() {
-  const [activeTabId, setActiveTabId] = useState(
-    concernTabsWithProducts[0]?.id ?? "",
-  );
+type ShopByConcernSectionProps = {
+  tabs: ConcernTabWithProducts[];
+};
+
+export function ShopByConcernSection({ tabs }: ShopByConcernSectionProps) {
+  const [activeTabId, setActiveTabId] = useState(tabs[0]?.id ?? "");
   const activeTab =
-    concernTabsWithProducts.find((tab) => tab.id === activeTabId) ??
-    concernTabsWithProducts[0];
+    tabs.find((tab) => tab.id === activeTabId) ??
+    tabs[0];
+
+  if (!activeTab) {
+    return null;
+  }
 
   return (
     <section className="bg-[#e8eef6]">
@@ -21,7 +27,7 @@ export function ShopByConcernSection() {
           </h2>
           <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
             <div className="inline-flex min-w-max items-center gap-6 border-b border-[#d7dde8]">
-              {concernTabsWithProducts.map((tab) => {
+              {tabs.map((tab) => {
                 const active = tab.id === activeTab.id;
 
                 return (

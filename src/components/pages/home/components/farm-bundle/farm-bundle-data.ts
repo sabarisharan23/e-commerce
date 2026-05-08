@@ -1,5 +1,3 @@
-import { getProductById } from "@/data/products";
-
 export type FarmBundleHeroProduct = {
   id: string;
   name: string;
@@ -10,6 +8,7 @@ export type FarmBundleHeroProduct = {
 export type FarmBundleItem = {
   id: string;
   name: string;
+  href: string;
   packSize: string;
   price: number;
   imageSrc: string;
@@ -25,25 +24,13 @@ export const farmBundleSection = {
   bundleTitle: "Frequently Bought Together!",
 };
 
-const farmBundleHeroProductIds = [
+export const farmBundleHeroProductIds = [
   "froot-plus",
   "diet-choize-chia-seed-finger-millet-flour",
   "uyirsathu-sathumavu",
 ];
 
-export const farmBundleHeroProducts: FarmBundleHeroProduct[] =
-  farmBundleHeroProductIds.map((productId) => {
-    const product = getProductById(productId);
-
-    return {
-      id: product.id,
-      name: product.name,
-      imageSrc: product.imageSrc,
-      imageAlt: product.imageAlt,
-    };
-  });
-
-export const farmBundleItems: FarmBundleItem[] = [
+export const farmBundleItemSeeds = [
   {
     productId: "diet-choize-chia-seed-finger-millet-flour",
     defaultSelected: true,
@@ -52,16 +39,4 @@ export const farmBundleItems: FarmBundleItem[] = [
     productId: "nutri-salt-moringa-infusion",
     defaultSelected: false,
   },
-].map(({ productId, defaultSelected }) => {
-  const product = getProductById(productId);
-
-  return {
-    id: product.id,
-    name: product.name,
-    packSize: `${product.weight} Pack`,
-    price: product.price,
-    imageSrc: product.imageSrc,
-    imageAlt: product.imageAlt,
-    defaultSelected,
-  };
-});
+];

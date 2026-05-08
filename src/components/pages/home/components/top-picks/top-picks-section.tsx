@@ -1,11 +1,18 @@
-import { ProductShowcaseSection } from "@/components/shared";
-import { topPicksProducts, topPicksSection } from "./top-picks-data";
+import {
+  ProductShowcaseSection,
+  type ProductDetails,
+} from "@/components/shared";
+import { topPicksSection } from "./top-picks-data";
 
-export function TopPicksSection() {
+type TopPicksSectionProps = {
+  products: ProductDetails[];
+};
+
+export function TopPicksSection({ products }: TopPicksSectionProps) {
   return (
     <ProductShowcaseSection
       section={topPicksSection}
-      products={topPicksProducts}
+      products={products}
     />
   );
 }

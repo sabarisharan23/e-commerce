@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -10,9 +11,13 @@ import {
 
 export type WishlistItem = {
   id: string;
-  name: string;
-  imageSrc: string;
-  price: number;
+};
+
+export type WishlistItemInput = {
+  id: string;
+  name?: string;
+  imageSrc?: string;
+  price?: number;
   originalPrice?: number;
   href?: string;
   category?: string;
@@ -22,9 +27,10 @@ type WishlistContextValue = {
   items: WishlistItem[];
   count: number;
   hasItem: (id: string) => boolean;
-  addItem: (item: WishlistItem) => void;
+  addItem: (item: WishlistItemInput) => void;
   removeItem: (id: string) => void;
-  toggleItem: (item: WishlistItem) => void;
+  removeItems: (ids: string[]) => void;
+  toggleItem: (item: WishlistItemInput) => void;
   clearWishlist: () => void;
 };
 
@@ -36,6 +42,45 @@ let cachedWishlistRaw = "";
 let cachedWishlistSnapshot: WishlistItem[] = EMPTY_WISHLIST;
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
+
+function getProductIdFromHref(href: string) {
+  const match = href.match(/\/products\/([^/?#]+)/);
+
+  return match?.[1] ? decodeURIComponent(match[1]).trim() : null;
+}
+
+function getProductIdFromItem(item: unknown) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const hrefProductId =
+    typeof record.href === "string" ? getProductIdFromHref(record.href) : null;
+  const productId =
+    hrefProductId ??
+    (typeof record.id === "string" && record.id.trim() ? record.id.trim() : null);
+
+  return productId;
+}
+
+function normalizeWishlistItems(value: unknown): WishlistItem[] {
+  if (!Array.isArray(value)) {
+    return EMPTY_WISHLIST;
+  }
+
+  const productIds = new Set<string>();
+
+  value.forEach((item) => {
+    const productId = getProductIdFromItem(item);
+
+    if (productId) {
+      productIds.add(productId);
+    }
+  });
+
+  return Array.from(productIds, (id) => ({ id }));
+}
 
 function readWishlist() {
   if (typeof window === "undefined") {
@@ -56,7 +101,7 @@ function readWishlist() {
 
   try {
     cachedWishlistRaw = stored;
-    cachedWishlistSnapshot = JSON.parse(stored) as WishlistItem[];
+    cachedWishlistSnapshot = normalizeWishlistItems(JSON.parse(stored));
     return cachedWishlistSnapshot;
   } catch {
     window.localStorage.removeItem(WISHLIST_STORAGE_KEY);
@@ -83,12 +128,47 @@ function subscribe(callback: () => void) {
 }
 
 function writeWishlist(items: WishlistItem[]) {
-  window.localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(items));
+  const compactItems = normalizeWishlistItems(items);
+  const serialized = JSON.stringify(compactItems);
+
+  cachedWishlistRaw = serialized;
+  cachedWishlistSnapshot = compactItems;
+
+  window.localStorage.setItem(WISHLIST_STORAGE_KEY, serialized);
   window.dispatchEvent(new Event(WISHLIST_CHANGE_EVENT));
+}
+
+function migrateWishlistStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = window.localStorage.getItem(WISHLIST_STORAGE_KEY);
+
+  if (!stored) {
+    return;
+  }
+
+  try {
+    const compactItems = normalizeWishlistItems(JSON.parse(stored));
+    const serialized = JSON.stringify(compactItems);
+
+    if (stored !== serialized) {
+      writeWishlist(compactItems);
+    }
+  } catch {
+    window.localStorage.removeItem(WISHLIST_STORAGE_KEY);
+    cachedWishlistRaw = "";
+    cachedWishlistSnapshot = EMPTY_WISHLIST;
+  }
 }
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const items = useSyncExternalStore(subscribe, readWishlist, () => EMPTY_WISHLIST);
+
+  useEffect(() => {
+    migrateWishlistStorage();
+  }, []);
 
   const value = useMemo<WishlistContextValue>(
     () => ({
@@ -96,22 +176,35 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       count: items.length,
       hasItem: (id) => items.some((item) => item.id === id),
       addItem: (item) => {
-        if (items.some((currentItem) => currentItem.id === item.id)) {
+        const productId = getProductIdFromItem(item);
+
+        if (!productId || items.some((currentItem) => currentItem.id === productId)) {
           return;
         }
 
-        writeWishlist([...items, item]);
+        writeWishlist([...items, { id: productId }]);
       },
       removeItem: (id) => {
         writeWishlist(items.filter((item) => item.id !== id));
       },
+      removeItems: (ids) => {
+        const idsToRemove = new Set(ids);
+
+        writeWishlist(items.filter((item) => !idsToRemove.has(item.id)));
+      },
       toggleItem: (item) => {
-        if (items.some((currentItem) => currentItem.id === item.id)) {
-          writeWishlist(items.filter((currentItem) => currentItem.id !== item.id));
+        const productId = getProductIdFromItem(item);
+
+        if (!productId) {
           return;
         }
 
-        writeWishlist([...items, item]);
+        if (items.some((currentItem) => currentItem.id === productId)) {
+          writeWishlist(items.filter((currentItem) => currentItem.id !== productId));
+          return;
+        }
+
+        writeWishlist([...items, { id: productId }]);
       },
       clearWishlist: () => writeWishlist([]),
     }),

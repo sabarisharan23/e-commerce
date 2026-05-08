@@ -6,6 +6,7 @@ import { apiErrors } from "../http/api-error";
 
 export type CreateProductPayload = {
   category?: unknown;
+  categoryId?: unknown;
   categoryTag?: unknown;
   description?: unknown;
   highlights?: unknown;
@@ -21,6 +22,7 @@ export type CreateProductPayload = {
   slug?: unknown;
   status?: unknown;
   stockUnits?: unknown;
+  tagId?: unknown;
   weight?: unknown;
 };
 
@@ -28,6 +30,7 @@ export type UpdateProductPayload = Partial<CreateProductPayload>;
 
 export type ProductDto = {
   category: string;
+  categoryId: string | null;
   categoryTag: string;
   createdAt: string;
   description: string;
@@ -46,12 +49,14 @@ export type ProductDto = {
   slug: string;
   status: ProductStatus;
   stockUnits: number;
+  tagId: string | null;
   updatedAt: string;
   weight: string;
 };
 
 type NormalizedCreateProductPayload = {
   category: string;
+  categoryId?: string | null;
   categoryTag: string;
   description: string;
   highlights: string[];
@@ -67,11 +72,13 @@ type NormalizedCreateProductPayload = {
   slug: string;
   status: ProductStatus;
   stockUnits: number;
+  tagId?: string | null;
   weight: string;
 };
 
 type NormalizedUpdateProductPayload = {
   category?: string;
+  categoryId?: string | null;
   categoryTag?: string;
   description?: string;
   highlights?: string[];
@@ -87,6 +94,7 @@ type NormalizedUpdateProductPayload = {
   slug?: string;
   status?: ProductStatus;
   stockUnits?: number;
+  tagId?: string | null;
   weight?: string;
 };
 
@@ -169,6 +177,19 @@ function normalizeRequiredString(
 
 function normalizeOptionalString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeOptionalId(value: unknown, field: string, fieldErrors: Record<string, string>) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    fieldErrors[field] = "Choose a valid record.";
+    return null;
+  }
+
+  return value.trim() || null;
 }
 
 function normalizeMoney(
@@ -260,7 +281,11 @@ function normalizeCreateProductPayload(
 
   const fieldErrors: Record<string, string> = {};
   const name = normalizeRequiredString(payload, "name", "Product name", fieldErrors, 2);
-  const category = normalizeRequiredString(payload, "category", "Category", fieldErrors, 2);
+  const categoryId = normalizeOptionalId(payload.categoryId, "categoryId", fieldErrors);
+  const category = categoryId
+    ? normalizeOptionalString(payload.category)
+    : normalizeRequiredString(payload, "category", "Category", fieldErrors, 2);
+  const tagId = normalizeOptionalId(payload.tagId, "tagId", fieldErrors);
   const imageSrc = normalizeRequiredString(payload, "imageSrc", "Product image", fieldErrors);
   const sku = normalizeRequiredString(payload, "sku", "SKU", fieldErrors, 2).toUpperCase();
   const price = normalizeMoney(payload.price, "price", "Price", fieldErrors, true) ?? 0;
@@ -303,6 +328,7 @@ function normalizeCreateProductPayload(
 
   return {
     category,
+    categoryId,
     categoryTag,
     description,
     highlights,
@@ -318,6 +344,7 @@ function normalizeCreateProductPayload(
     slug,
     status,
     stockUnits,
+    tagId,
     weight,
   };
 }
@@ -342,8 +369,16 @@ function normalizeUpdateProductPayload(
     normalized.category = normalizeRequiredString(payload, "category", "Category", fieldErrors, 2);
   }
 
+  if (hasOwnField(payload, "categoryId")) {
+    normalized.categoryId = normalizeOptionalId(payload.categoryId, "categoryId", fieldErrors);
+  }
+
   if (hasOwnField(payload, "categoryTag")) {
     normalized.categoryTag = normalizeOptionalString(payload.categoryTag);
+  }
+
+  if (hasOwnField(payload, "tagId")) {
+    normalized.tagId = normalizeOptionalId(payload.tagId, "tagId", fieldErrors);
   }
 
   if (hasOwnField(payload, "description")) {
@@ -455,6 +490,7 @@ function toDecimal(value: number) {
 
 function toProductDto(product: {
   category: string;
+  categoryId: string | null;
   categoryTag: string;
   createdAt: Date;
   description: string;
@@ -473,6 +509,7 @@ function toProductDto(product: {
   slug: string;
   status: string;
   stockUnits: number;
+  tagId: string | null;
   updatedAt: Date;
   weight: string;
 }): ProductDto {
@@ -482,6 +519,7 @@ function toProductDto(product: {
 
   return {
     category: product.category,
+    categoryId: product.categoryId,
     categoryTag: product.categoryTag,
     createdAt: product.createdAt.toISOString(),
     description: product.description,
@@ -502,6 +540,7 @@ function toProductDto(product: {
       ? (product.status as ProductStatus)
       : "IN_STOCK",
     stockUnits: product.stockUnits,
+    tagId: product.tagId,
     updatedAt: product.updatedAt.toISOString(),
     weight: product.weight,
   };
@@ -536,6 +575,108 @@ function getUniqueConflictMessage(error: unknown, product: { sku?: string; slug?
   return null;
 }
 
+async function resolveCreateProductTaxonomy(
+  product: NormalizedCreateProductPayload,
+): Promise<NormalizedCreateProductPayload> {
+  let category = product.category;
+  let categoryTag = product.categoryTag;
+
+  if (product.categoryId) {
+    const selectedCategory = await prisma.category.findUnique({
+      select: {
+        name: true,
+      },
+      where: {
+        id: product.categoryId,
+      },
+    });
+
+    if (!selectedCategory) {
+      throw apiErrors.validation("Product details are invalid.", {
+        categoryId: "Choose a valid product category.",
+      });
+    }
+
+    category = selectedCategory.name;
+    categoryTag = categoryTag || selectedCategory.name;
+  }
+
+  if (product.tagId) {
+    const selectedTag = await prisma.productTag.findUnique({
+      select: {
+        name: true,
+      },
+      where: {
+        id: product.tagId,
+      },
+    });
+
+    if (!selectedTag) {
+      throw apiErrors.validation("Product details are invalid.", {
+        tagId: "Choose a valid product tag.",
+      });
+    }
+
+    categoryTag = selectedTag.name;
+  }
+
+  return {
+    ...product,
+    category,
+    categoryTag: categoryTag || category,
+  };
+}
+
+async function resolveUpdateProductTaxonomy(
+  product: NormalizedUpdateProductPayload,
+): Promise<NormalizedUpdateProductPayload> {
+  const resolvedProduct = { ...product };
+
+  if (product.categoryId) {
+    const selectedCategory = await prisma.category.findUnique({
+      select: {
+        name: true,
+      },
+      where: {
+        id: product.categoryId,
+      },
+    });
+
+    if (!selectedCategory) {
+      throw apiErrors.validation("Product details are invalid.", {
+        categoryId: "Choose a valid product category.",
+      });
+    }
+
+    resolvedProduct.category = selectedCategory.name;
+
+    if (product.tagId === null) {
+      resolvedProduct.categoryTag = selectedCategory.name;
+    }
+  }
+
+  if (product.tagId) {
+    const selectedTag = await prisma.productTag.findUnique({
+      select: {
+        name: true,
+      },
+      where: {
+        id: product.tagId,
+      },
+    });
+
+    if (!selectedTag) {
+      throw apiErrors.validation("Product details are invalid.", {
+        tagId: "Choose a valid product tag.",
+      });
+    }
+
+    resolvedProduct.categoryTag = selectedTag.name;
+  }
+
+  return resolvedProduct;
+}
+
 export async function listProducts(): Promise<ProductDto[]> {
   const products = await prisma.product.findMany({
     orderBy: {
@@ -561,34 +702,37 @@ export async function getProduct(productId: string): Promise<ProductDto> {
 }
 
 export async function createProduct(payload: CreateProductPayload): Promise<ProductDto> {
-  const product = normalizeCreateProductPayload(payload);
+  const product = await resolveCreateProductTaxonomy(normalizeCreateProductPayload(payload));
 
   for (let attempt = 1; attempt <= maxCreateAttempts; attempt += 1) {
     try {
+      const data: Prisma.ProductUncheckedCreateInput = {
+        category: product.category,
+        categoryId: product.categoryId,
+        categoryTag: product.categoryTag,
+        description: product.description,
+        highlights: product.highlights,
+        imageAlt: product.imageAlt,
+        imageSrc: product.imageSrc,
+        name: product.name,
+        originalPrice:
+          product.originalPrice === undefined
+            ? undefined
+            : toDecimal(product.originalPrice),
+        price: toDecimal(product.price),
+        productCode: createProductCode(),
+        rating: product.rating,
+        saleLabel: product.saleLabel,
+        shortDescription: product.shortDescription,
+        sku: product.sku,
+        slug: product.slug,
+        status: product.status,
+        stockUnits: product.stockUnits,
+        tagId: product.tagId,
+        weight: product.weight,
+      };
       const createdProduct = await prisma.product.create({
-        data: {
-          category: product.category,
-          categoryTag: product.categoryTag,
-          description: product.description,
-          highlights: product.highlights,
-          imageAlt: product.imageAlt,
-          imageSrc: product.imageSrc,
-          name: product.name,
-          originalPrice:
-            product.originalPrice === undefined
-              ? undefined
-              : toDecimal(product.originalPrice),
-          price: toDecimal(product.price),
-          productCode: createProductCode(),
-          rating: product.rating,
-          saleLabel: product.saleLabel,
-          shortDescription: product.shortDescription,
-          sku: product.sku,
-          slug: product.slug,
-          status: product.status,
-          stockUnits: product.stockUnits,
-          weight: product.weight,
-        },
+        data,
       });
 
       return toProductDto(createdProduct);
@@ -614,10 +758,11 @@ export async function updateProduct(
   productId: string,
   payload: UpdateProductPayload,
 ): Promise<ProductDto> {
-  const product = normalizeUpdateProductPayload(payload);
-  const data: Prisma.ProductUpdateInput = {};
+  const product = await resolveUpdateProductTaxonomy(normalizeUpdateProductPayload(payload));
+  const data: Prisma.ProductUncheckedUpdateInput = {};
 
   if (product.category !== undefined) data.category = product.category;
+  if (product.categoryId !== undefined) data.categoryId = product.categoryId;
   if (product.categoryTag !== undefined) data.categoryTag = product.categoryTag;
   if (product.description !== undefined) data.description = product.description;
   if (product.highlights !== undefined) data.highlights = product.highlights;
@@ -635,6 +780,7 @@ export async function updateProduct(
   if (product.slug !== undefined) data.slug = product.slug;
   if (product.status !== undefined) data.status = product.status;
   if (product.stockUnits !== undefined) data.stockUnits = product.stockUnits;
+  if (product.tagId !== undefined) data.tagId = product.tagId;
   if (product.weight !== undefined) data.weight = product.weight;
 
   try {

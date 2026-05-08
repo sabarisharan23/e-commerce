@@ -1,9 +1,13 @@
-import { getProductsByIds } from "@/data/products";
+import type { ProductDetails } from "@/components/shared";
 
 export type ConcernTab = {
   id: string;
   label: string;
   productIds: string[];
+};
+
+export type ConcernTabWithProducts = ConcernTab & {
+  products: ProductDetails[];
 };
 
 export const concernTabs: ConcernTab[] = [
@@ -58,8 +62,3 @@ export const concernTabs: ConcernTab[] = [
     ],
   },
 ];
-
-export const concernTabsWithProducts = concernTabs.map((tab) => ({
-  ...tab,
-  products: getProductsByIds(tab.productIds),
-}));

@@ -1,18 +1,18 @@
-import { getProductById } from "@/data/products";
-
 export type JourneyItem = {
   id: string;
+  productId: string;
   mediaSrc: string;
   mediaAlt: string;
   title: string;
   productName: string;
+  productHref: string;
   productImageSrc: string;
   productImageAlt: string;
   price: number;
   story: string;
 };
 
-const journeyItemSeeds = [
+export const journeyItemSeeds = [
   {
     id: "doctor-seeds",
     mediaSrc: "/images/foodjourney1.png",
@@ -50,19 +50,3 @@ const journeyItemSeeds = [
       "Another short-form nutrition story focused on flavor, balance, and making daily pantry decisions feel easier.",
   },
 ];
-
-export const journeyItems: JourneyItem[] = journeyItemSeeds.map((item) => {
-  const product = getProductById(item.productId);
-
-  return {
-    id: item.id,
-    mediaSrc: item.mediaSrc,
-    mediaAlt: item.mediaAlt,
-    title: item.title,
-    productName: product.name,
-    productImageSrc: product.imageSrc,
-    productImageAlt: product.imageAlt,
-    price: product.price,
-    story: item.story,
-  };
-});

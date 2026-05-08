@@ -6,15 +6,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/shared";
 import { useWishlist } from "@/components/shared";
 import type { ProductDetails } from "@/components/shared";
-import {
-  allProducts,
-  getProductHref,
-  getProductsByCategory,
-  productCategoriesWithProducts,
-} from "@/data/products";
 
 type ProductsPageProps = {
+  categoriesWithProducts: ProductCategoryWithProducts[];
   initialCategoryId?: string | null;
+  products: ProductDetails[];
+};
+
+type ProductCategoryWithProducts = {
+  id: string;
+  label: string;
+  products: ProductDetails[];
 };
 
 type SortOptionId =
@@ -225,8 +227,12 @@ function getCartItem(product: ProductDetails) {
     name: product.name,
     imageSrc: product.imageSrc,
     price: product.price,
-    href: getProductHref(product.id),
+    href: getProductHref(product),
   };
+}
+
+function getProductHref(product: ProductDetails) {
+  return product.href || `/products/${product.id}`;
 }
 
 function getPageSize(width: number) {
@@ -395,7 +401,7 @@ function QuickViewModal({
                       imageSrc: product.imageSrc,
                       price: product.price,
                       originalPrice: product.originalPrice,
-                      href: getProductHref(product.id),
+                      href: getProductHref(product),
                       category: product.category,
                     })
                   }
@@ -450,7 +456,7 @@ function ProductCard({
               imageSrc: product.imageSrc,
               price: product.price,
               originalPrice: product.originalPrice,
-              href: getProductHref(product.id),
+              href: getProductHref(product),
               category: product.category,
             })
           }
@@ -474,7 +480,7 @@ function ProductCard({
       </div>
 
       <Link
-        href={getProductHref(product.id)}
+        href={getProductHref(product)}
         target="_blank"
         rel="noopener noreferrer"
         className="relative block min-h-[230px] overflow-hidden rounded-[18px] bg-[#f8f9f5]"
@@ -490,7 +496,7 @@ function ProductCard({
 
       <div className="mt-5 flex flex-1 flex-col">
         <Link
-          href={getProductHref(product.id)}
+          href={getProductHref(product)}
           target="_blank"
           rel="noopener noreferrer"
           className="line-clamp-1 text-xl font-medium leading-8 text-[#446a42]"
@@ -533,6 +539,8 @@ function ProductCard({
 }
 
 function FiltersPanel({
+  categoriesWithProducts,
+  productsCount,
   selectedCategoryId,
   onCategoryChange,
   minPrice,
@@ -545,6 +553,8 @@ function FiltersPanel({
   onRatingChange,
   onClear,
 }: {
+  categoriesWithProducts: ProductCategoryWithProducts[];
+  productsCount: number;
   selectedCategoryId: string | null;
   onCategoryChange: (value: string | null) => void;
   minPrice: number;
@@ -589,10 +599,10 @@ function FiltersPanel({
               }`}
             >
               <span>All Products</span>
-              <span className="text-sm">{allProducts.length}</span>
+              <span className="text-sm">{productsCount}</span>
             </button>
 
-            {productCategoriesWithProducts.map((category) => {
+            {categoriesWithProducts.map((category) => {
               const active = category.id === selectedCategoryId;
 
               return (
@@ -676,7 +686,11 @@ function FiltersPanel({
   );
 }
 
-export function ProductsPage({ initialCategoryId = null }: ProductsPageProps) {
+export function ProductsPage({
+  categoriesWithProducts,
+  initialCategoryId = null,
+  products,
+}: ProductsPageProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     initialCategoryId,
   );
@@ -687,14 +701,20 @@ export function ProductsPage({ initialCategoryId = null }: ProductsPageProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [ratingOnly, setRatingOnly] = useState(false);
 
-  const absoluteMinPrice = useMemo(
-    () => Math.min(...allProducts.map((product) => product.price)),
-    [],
-  );
-  const absoluteMaxPrice = useMemo(
-    () => Math.max(...allProducts.map((product) => product.price)),
-    [],
-  );
+  const absoluteMinPrice = useMemo(() => {
+    if (products.length === 0) {
+      return 0;
+    }
+
+    return Math.min(...products.map((product) => product.price));
+  }, [products]);
+  const absoluteMaxPrice = useMemo(() => {
+    if (products.length === 0) {
+      return 0;
+    }
+
+    return Math.max(...products.map((product) => product.price));
+  }, [products]);
 
   const [minPrice, setMinPrice] = useState(absoluteMinPrice);
   const [maxPrice, setMaxPrice] = useState(absoluteMaxPrice);
@@ -722,18 +742,18 @@ export function ProductsPage({ initialCategoryId = null }: ProductsPageProps) {
     };
   }, [isFiltersOpen]);
 
-  const activeCategory = productCategoriesWithProducts.find(
+  const activeCategory = categoriesWithProducts.find(
     (category) => category.id === selectedCategoryId,
   );
   const pageCopy = getPageCopy(selectedCategoryId);
 
   const baseProducts = useMemo(() => {
     if (!selectedCategoryId) {
-      return allProducts;
+      return products;
     }
 
-    return getProductsByCategory(selectedCategoryId);
-  }, [selectedCategoryId]);
+    return activeCategory?.products ?? [];
+  }, [activeCategory, products, selectedCategoryId]);
 
   const filteredProducts = useMemo(() => {
     return baseProducts.filter((product) => {
@@ -814,6 +834,8 @@ export function ProductsPage({ initialCategoryId = null }: ProductsPageProps) {
             <aside className="hidden lg:block">
               <div className="sticky top-6 rounded-[24px] border border-[#e8ece3] bg-[#fbfdf8] p-5 shadow-[0_14px_32px_rgba(18,37,61,0.06)]">
                 <FiltersPanel
+                  categoriesWithProducts={categoriesWithProducts}
+                  productsCount={products.length}
                   selectedCategoryId={selectedCategoryId}
                   onCategoryChange={handleCategoryChange}
                   minPrice={minPrice}
@@ -1009,6 +1031,8 @@ export function ProductsPage({ initialCategoryId = null }: ProductsPageProps) {
             </div>
 
             <FiltersPanel
+              categoriesWithProducts={categoriesWithProducts}
+              productsCount={products.length}
               selectedCategoryId={selectedCategoryId}
               onCategoryChange={handleCategoryChange}
               minPrice={minPrice}

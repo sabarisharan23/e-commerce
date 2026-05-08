@@ -2,6 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo } from "react";
+import type { ProductDetails } from "@/components/shared";
+import {
+  getMissingStoredProductIds,
+  hydrateWishlistItems,
+} from "@/components/shared/storefront-product-hydration";
 import { useCart } from "@/components/shared/cart/cart-provider";
 import { useWishlist } from "@/components/shared/wishlist/wishlist-provider";
 import { EmptyWishlistState } from "./components/empty-wishlist-state";
@@ -48,9 +54,28 @@ function formatPrice(value: number, minimumFractionDigits = 0) {
   }).format(value);
 }
 
-export function WishlistPage() {
-  const { items, count, removeItem, clearWishlist } = useWishlist();
+type WishlistPageProps = {
+  products: ProductDetails[];
+};
+
+export function WishlistPage({ products }: WishlistPageProps) {
+  const { items, removeItem, removeItems, clearWishlist } = useWishlist();
   const { addItem } = useCart();
+  const hydratedItems = useMemo(
+    () => hydrateWishlistItems(items, products),
+    [items, products],
+  );
+  const missingProductIds = useMemo(
+    () => getMissingStoredProductIds(items, products),
+    [items, products],
+  );
+  const count = hydratedItems.length;
+
+  useEffect(() => {
+    if (missingProductIds.length > 0) {
+      removeItems(missingProductIds);
+    }
+  }, [missingProductIds, removeItems]);
 
   return (
     <div className="w-full bg-white px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -66,7 +91,7 @@ export function WishlistPage() {
           <span className="text-[#4f7d49]">Wishlist</span>
         </nav>
 
-        {items.length === 0 ? (
+        {hydratedItems.length === 0 ? (
           <EmptyWishlistState />
         ) : (
           <>
@@ -90,7 +115,7 @@ export function WishlistPage() {
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((item) => (
+              {hydratedItems.map((item) => (
                 <article
                   key={item.id}
                   className="group relative flex h-full flex-col rounded-[22px] border border-[#e0e7de] bg-white p-4 transition-all hover:border-[#a7c59c] hover:shadow-[0_16px_40px_rgba(43,73,35,0.08)] sm:p-5"
@@ -119,10 +144,13 @@ export function WishlistPage() {
 
                   <div className="mt-5 flex flex-1 flex-col">
                     <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#6b7d8f]">
-                      {item.category ?? "Wishlist"}
+                      {item.category}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#4f7d49]">
+                      {item.stockStatus}
                     </p>
                     <Link
-                      href={item.href ?? "/products"}
+                      href={item.href}
                       className="mt-2 text-xl font-medium leading-8 text-[#446a42]"
                     >
                       {item.name}

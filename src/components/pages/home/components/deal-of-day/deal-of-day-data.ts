@@ -1,7 +1,6 @@
 import type {
   ProductShowcaseSectionConfig,
 } from "@/components/shared";
-import { getProductsByIds } from "@/data/products";
 
 export const dealOfDaySection: ProductShowcaseSectionConfig = {
   title: "Deal of the Day",
@@ -11,7 +10,7 @@ export const dealOfDaySection: ProductShowcaseSectionConfig = {
   countdownTarget: "2026-05-13T12:45:30+05:30",
 };
 
-export const dealOfDayProducts = getProductsByIds([
+export const dealOfDayProductIds = [
   "diet-choize-chia-seed-finger-millet-flour",
   "pearl-millet",
   "nutri-salt-moringa-infusion",
@@ -20,4 +19,4 @@ export const dealOfDayProducts = getProductsByIds([
   "bamboo-rice-quinoa-puttu-mix",
   "uyirsathu-sathumavu",
   "millet-vita-traditional-health-mix",
-]);
+];

@@ -1,11 +1,18 @@
-import { ProductShowcaseSection } from "@/components/shared";
-import { dealOfDayProducts, dealOfDaySection } from "./deal-of-day-data";
+import {
+  ProductShowcaseSection,
+  type ProductDetails,
+} from "@/components/shared";
+import { dealOfDaySection } from "./deal-of-day-data";
 
-export function DealOfDaySection() {
+type DealOfDaySectionProps = {
+  products: ProductDetails[];
+};
+
+export function DealOfDaySection({ products }: DealOfDaySectionProps) {
   return (
     <ProductShowcaseSection
       section={dealOfDaySection}
-      products={dealOfDayProducts}
+      products={products}
     />
   );
 }

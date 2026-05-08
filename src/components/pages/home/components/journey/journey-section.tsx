@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/shared";
-import { journeyItems } from "./journey-data";
+import type { JourneyItem } from "./journey-data";
 
 function ExternalIcon() {
   return (
@@ -117,7 +117,11 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
-export function JourneySection() {
+type JourneySectionProps = {
+  items: JourneyItem[];
+};
+
+export function JourneySection({ items }: JourneySectionProps) {
   const { addItem } = useCart();
   const [activePage, setActivePage] = useState(0);
   const [cardsPerView, setCardsPerView] = useState(4);
@@ -135,13 +139,13 @@ export function JourneySection() {
   }, []);
 
   const pages = useMemo(
-    () => chunkItems(journeyItems, cardsPerView),
-    [cardsPerView],
+    () => chunkItems(items, cardsPerView),
+    [items, cardsPerView],
   );
 
   const currentPage = Math.min(activePage, Math.max(pages.length - 1, 0));
   const selectedStory =
-    journeyItems.find((item) => item.id === selectedStoryId) ?? null;
+    items.find((item) => item.id === selectedStoryId) ?? null;
 
   return (
     <>
@@ -229,10 +233,11 @@ export function JourneySection() {
                               type="button"
                               onClick={() =>
                                 addItem({
-                                  id: item.id,
+                                  id: item.productId,
                                   name: item.productName,
                                   imageSrc: item.productImageSrc,
                                   price: item.price,
+                                  href: item.productHref,
                                 })
                               }
                               className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#46713f] px-4 text-lg font-semibold text-white transition-colors hover:bg-[#3d6238]"
@@ -316,10 +321,11 @@ export function JourneySection() {
                     type="button"
                     onClick={() =>
                       addItem({
-                        id: selectedStory.id,
+                        id: selectedStory.productId,
                         name: selectedStory.productName,
                         imageSrc: selectedStory.productImageSrc,
                         price: selectedStory.price,
+                        href: selectedStory.productHref,
                       })
                     }
                     className="inline-flex h-12 items-center justify-center rounded-full bg-[#46713f] px-6 text-sm font-semibold text-white"

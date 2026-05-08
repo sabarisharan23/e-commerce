@@ -13,19 +13,23 @@ import {
 
 export type CartItem = {
   id: string;
-  name: string;
-  imageSrc: string;
-  price: number;
-  href?: string;
   quantity: number;
+};
+
+export type CartItemInput = {
+  id: string;
+  name?: string;
+  imageSrc?: string;
+  price?: number;
+  href?: string;
 };
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
-  total: number;
-  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
+  addItem: (item: CartItemInput, quantity?: number) => void;
   removeItem: (id: string) => void;
+  removeItems: (ids: string[]) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
 };
@@ -42,6 +46,62 @@ type CartToast = {
   id: number;
   name: string;
 };
+
+function getProductIdFromHref(href: string) {
+  const match = href.match(/\/products\/([^/?#]+)/);
+
+  return match?.[1] ? decodeURIComponent(match[1]).trim() : null;
+}
+
+function getProductIdFromItem(item: unknown) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const record = item as Record<string, unknown>;
+  const hrefProductId =
+    typeof record.href === "string" ? getProductIdFromHref(record.href) : null;
+  const productId =
+    hrefProductId ??
+    (typeof record.id === "string" && record.id.trim() ? record.id.trim() : null);
+
+  return productId;
+}
+
+function normalizeQuantity(value: unknown) {
+  const quantity = Number(value);
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return 1;
+  }
+
+  return Math.floor(quantity);
+}
+
+function normalizeCartItems(value: unknown): CartItem[] {
+  if (!Array.isArray(value)) {
+    return EMPTY_CART;
+  }
+
+  const quantitiesById = new Map<string, number>();
+
+  value.forEach((item) => {
+    const productId = getProductIdFromItem(item);
+
+    if (!productId) {
+      return;
+    }
+
+    const quantity =
+      item && typeof item === "object"
+        ? normalizeQuantity((item as Record<string, unknown>).quantity)
+        : 1;
+
+    quantitiesById.set(productId, (quantitiesById.get(productId) ?? 0) + quantity);
+  });
+
+  return Array.from(quantitiesById, ([id, quantity]) => ({ id, quantity }));
+}
 
 function readCart() {
   if (typeof window === "undefined") {
@@ -62,7 +122,7 @@ function readCart() {
 
   try {
     cachedCartRaw = stored;
-    cachedCartSnapshot = JSON.parse(stored) as CartItem[];
+    cachedCartSnapshot = normalizeCartItems(JSON.parse(stored));
     return cachedCartSnapshot;
   } catch {
     window.localStorage.removeItem(CART_STORAGE_KEY);
@@ -89,8 +149,39 @@ function subscribe(callback: () => void) {
 }
 
 function writeCart(items: CartItem[]) {
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  const compactItems = normalizeCartItems(items);
+  const serialized = JSON.stringify(compactItems);
+
+  cachedCartRaw = serialized;
+  cachedCartSnapshot = compactItems;
+
+  window.localStorage.setItem(CART_STORAGE_KEY, serialized);
   window.dispatchEvent(new Event(CART_CHANGE_EVENT));
+}
+
+function migrateCartStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = window.localStorage.getItem(CART_STORAGE_KEY);
+
+  if (!stored) {
+    return;
+  }
+
+  try {
+    const compactItems = normalizeCartItems(JSON.parse(stored));
+    const serialized = JSON.stringify(compactItems);
+
+    if (stored !== serialized) {
+      writeCart(compactItems);
+    }
+  } catch {
+    window.localStorage.removeItem(CART_STORAGE_KEY);
+    cachedCartRaw = "";
+    cachedCartSnapshot = EMPTY_CART;
+  }
 }
 
 function CheckIcon() {
@@ -179,6 +270,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<CartToast | null>(null);
 
   useEffect(() => {
+    migrateCartStorage();
+  }, []);
+
+  useEffect(() => {
     if (!toast) {
       return;
     }
@@ -194,25 +289,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => ({
       items,
       count: items.reduce((sum, item) => sum + item.quantity, 0),
-      total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
       addItem: (item, quantity = 1) => {
-        const existing = items.find((currentItem) => currentItem.id === item.id);
+        const productId = getProductIdFromItem(item);
+
+        if (!productId) {
+          return;
+        }
+
+        const normalizedQuantity = normalizeQuantity(quantity);
+        const existing = items.find((currentItem) => currentItem.id === productId);
         const nextItems = !existing
-          ? [...items, { ...item, quantity }]
+          ? [...items, { id: productId, quantity: normalizedQuantity }]
           : items.map((currentItem) =>
-              currentItem.id === item.id
-                ? { ...currentItem, quantity: currentItem.quantity + quantity }
+              currentItem.id === productId
+                ? {
+                    ...currentItem,
+                    quantity: currentItem.quantity + normalizedQuantity,
+                  }
                 : currentItem,
             );
 
         writeCart(nextItems);
         setToast({
           id: Date.now(),
-          name: item.name,
+          name: item.name ?? "Product",
         });
       },
       removeItem: (id) => {
         writeCart(items.filter((item) => item.id !== id));
+      },
+      removeItems: (ids) => {
+        const idsToRemove = new Set(ids);
+
+        writeCart(items.filter((item) => !idsToRemove.has(item.id)));
       },
       updateQuantity: (id, quantity) => {
         const nextItems = items.flatMap((item) => {
@@ -224,7 +333,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             return [];
           }
 
-          return [{ ...item, quantity }];
+          return [{ ...item, quantity: normalizeQuantity(quantity) }];
         });
 
         writeCart(nextItems);

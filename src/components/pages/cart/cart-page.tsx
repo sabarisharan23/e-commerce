@@ -1,7 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/shared";
+import type { ProductDetails } from "@/components/shared";
+import {
+  getMissingStoredProductIds,
+  hydrateCartItems,
+} from "@/components/shared/storefront-product-hydration";
 import { CartBreadcrumbs } from "./components/cart-breadcrumbs";
 import { CartItemsTable } from "./components/cart-items-table";
 import { CouponPanel } from "./components/coupon-panel";
@@ -14,11 +19,40 @@ const FREE_DELIVERY_THRESHOLD = 2750;
 const STANDARD_DELIVERY_FEE = 50;
 const TAX_RATE = 0.18;
 
-export function CartPage() {
-  const { items, total, updateQuantity, removeItem, clearCart } = useCart();
-  const [discount, setDiscount] = useState(0);
+type CartPageProps = {
+  products: ProductDetails[];
+};
 
-  const deliveryFee = total >= FREE_DELIVERY_THRESHOLD || items.length === 0 ? 0 : STANDARD_DELIVERY_FEE;
+export function CartPage({ products }: CartPageProps) {
+  const { items, updateQuantity, removeItem, removeItems, clearCart } = useCart();
+  const [discount, setDiscount] = useState(0);
+  const hydratedItems = useMemo(
+    () => hydrateCartItems(items, products),
+    [items, products],
+  );
+  const missingProductIds = useMemo(
+    () => getMissingStoredProductIds(items, products),
+    [items, products],
+  );
+  const total = useMemo(
+    () =>
+      hydratedItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      ),
+    [hydratedItems],
+  );
+
+  useEffect(() => {
+    if (missingProductIds.length > 0) {
+      removeItems(missingProductIds);
+    }
+  }, [missingProductIds, removeItems]);
+
+  const deliveryFee =
+    total >= FREE_DELIVERY_THRESHOLD || hydratedItems.length === 0
+      ? 0
+      : STANDARD_DELIVERY_FEE;
   const tax = useMemo(
     () => Math.round((Math.max(total - discount, 0) * TAX_RATE) * 100) / 100,
     [discount, total],
@@ -29,7 +63,7 @@ export function CartPage() {
       <div className="space-y-8">
         <CartBreadcrumbs />
 
-        {items.length === 0 ? (
+        {hydratedItems.length === 0 ? (
           <EmptyCartState />
         ) : (
           <>
@@ -54,7 +88,7 @@ export function CartPage() {
                 />
 
                 <CartItemsTable
-                  items={items}
+                  items={hydratedItems}
                   updateQuantity={updateQuantity}
                   removeItem={removeItem}
                 />
