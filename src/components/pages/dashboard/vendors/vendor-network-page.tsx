@@ -1,23 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import {
   vendorCategoryOptions,
-  vendorGridCards,
   vendorGrowthReport,
-  vendorMetrics,
   vendorQuickActions,
   vendorStatusOptions,
-  vendorTableRows,
   vendorsPageContent,
   type VendorGridCard,
+  type VendorMetric,
   type VendorStatus,
   type VendorTableRow,
 } from "./vendors-data";
+import {
+  VendorOnboardingDialog,
+  type VendorRecord,
+} from "./components/vendor-onboarding-dialog";
 
 type ViewMode = "list" | "grid";
+
+type ApiListVendorsResponse =
+  | {
+      data: VendorRecord[];
+      success: true;
+    }
+  | {
+      error: {
+        message: string;
+      };
+      success: false;
+    };
 
 function GridViewIcon() {
   return (
@@ -116,6 +130,17 @@ function EditIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 stroke-current" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M6 7l1 13h10l1-13" />
+      <path d="M9 7V4h6v3" />
+    </svg>
+  );
+}
+
 function AddUserIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 stroke-current" fill="none" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -147,15 +172,76 @@ function statusColor(status: VendorStatus) {
   return "text-[#477640]";
 }
 
-function matchesVendorFilters<T extends { name: string; category: string; status: VendorStatus }>(
+function initialsFromName(name: string) {
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return initials || "VN";
+}
+
+function vendorRecordStatus(status: string): VendorStatus {
+  if (status === "ACTIVE") return "active";
+  if (status === "INACTIVE") return "inactive";
+  if (status === "UNDER_AUDIT") return "under-audit";
+  return "fresh-onboard";
+}
+
+function vendorRecordSlug(vendor: VendorRecord) {
+  return vendor.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || vendor.id;
+}
+
+function vendorRecordToTableRow(vendor: VendorRecord): VendorTableRow {
+  return {
+    category: "Nature Foods",
+    id: vendor.id,
+    initials: initialsFromName(vendor.name),
+    name: vendor.name,
+    salesDelta: "New vendor",
+    slug: vendorRecordSlug(vendor),
+    status: vendorRecordStatus(vendor.status),
+    stockCount: "0 units",
+    totalSales: "Rs. 0.00",
+    vendorCode: vendor.vendorCode,
+  };
+}
+
+function vendorRecordToGridCard(vendor: VendorRecord): VendorGridCard {
+  return {
+    accentFrom: "#477640",
+    accentTo: "#9a7a35",
+    category: "Nature Foods",
+    id: vendor.id,
+    initials: initialsFromName(vendor.name),
+    joined: new Date(vendor.createdAt).toLocaleString("en-US", {
+      month: "short",
+      year: "numeric",
+    }),
+    name: vendor.name,
+    productsCount: "0",
+    rating: "New",
+    slug: vendorRecordSlug(vendor),
+    status: vendorRecordStatus(vendor.status),
+  };
+}
+
+function matchesVendorFilters<T extends { category: string; name: string; status: VendorStatus; vendorCode?: string }>(
   item: T,
   query: string,
   category: string,
   status: string,
 ) {
+  const normalizedQuery = query.trim().toLowerCase();
   const queryOk =
-    query.trim().length === 0 ||
-    item.name.toLowerCase().includes(query.toLowerCase());
+    normalizedQuery.length === 0 ||
+    item.name.toLowerCase().includes(normalizedQuery) ||
+    (item.vendorCode?.toLowerCase().includes(normalizedQuery) ?? false);
   const categoryOk = category === "All Categories" || item.category === category;
   const statusOk =
     status === "All Status" ||
@@ -164,7 +250,21 @@ function matchesVendorFilters<T extends { name: string; category: string; status
   return queryOk && categoryOk && statusOk;
 }
 
-function VendorMetricCard({ metric }: { metric: (typeof vendorMetrics)[number] }) {
+async function getApiErrorMessage(response: Response, fallback: string) {
+  try {
+    const payload = (await response.json()) as ApiListVendorsResponse;
+
+    if (!payload.success) {
+      return payload.error.message;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+function VendorMetricCard({ metric }: { metric: VendorMetric }) {
   const toneClass =
     metric.tone === "purple"
       ? "bg-[#efebff] text-[#5d54db]"
@@ -187,7 +287,17 @@ function VendorMetricCard({ metric }: { metric: (typeof vendorMetrics)[number] }
   );
 }
 
-function VendorListTable({ rows }: { rows: VendorTableRow[] }) {
+function VendorListTable({
+  deletingVendorId,
+  onDelete,
+  onEdit,
+  rows,
+}: {
+  deletingVendorId: string;
+  onDelete: (vendorId: string) => void;
+  onEdit: (vendorId: string) => void;
+  rows: VendorTableRow[];
+}) {
   return (
     <DashboardPanel className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -203,7 +313,14 @@ function VendorListTable({ rows }: { rows: VendorTableRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-14 text-center text-base font-medium text-[#71829a]">
+                  No vendors found.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
               <tr key={row.id}>
                 <td className="border-b border-[#edf1f6] px-6 py-5">
                   <div className="flex items-center gap-4">
@@ -238,23 +355,45 @@ function VendorListTable({ rows }: { rows: VendorTableRow[] }) {
                 </td>
                 <td className="border-b border-[#edf1f6] px-6 py-5">
                   <div className="flex items-center justify-end gap-4 text-[#94a3b8]">
-                    <Link href={`/dashboard/vendors/${row.slug}`} className="transition-colors hover:text-[#477640]">
+                    <Link
+                      href={`/dashboard/vendors/${row.slug}`}
+                      className="transition-colors hover:text-[#477640]"
+                      aria-label={`View ${row.name}`}
+                    >
                       <EyeIcon />
                     </Link>
-                    <button type="button" className="transition-colors hover:text-[#477640]">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(row.id)}
+                      className="transition-colors hover:text-[#477640]"
+                      aria-label={`Edit ${row.name}`}
+                    >
                       <EditIcon />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(row.id)}
+                      disabled={deletingVendorId === row.id}
+                      className="transition-colors hover:text-[#dc2626] disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete ${row.name}`}
+                    >
+                      <TrashIcon />
                     </button>
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="mt-6 flex flex-col gap-4 border-t border-[#edf1f6] pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-[#64748b]">Showing 1-10 of 1,284 vendors</p>
-        <div className="flex items-center gap-2">
+        <p className="text-sm font-medium text-[#64748b]">
+          Showing <span className="font-semibold text-[#17213d]">{rows.length}</span>{" "}
+          vendors
+        </p>
+        <div className="hidden">
           <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dbe3ee] bg-white text-[#94a3b8]">‹</button>
           <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#477640] bg-[#477640] px-3 text-sm font-semibold text-white">1</button>
           <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#dbe3ee] bg-white px-3 text-sm font-semibold text-[#334155]">2</button>
@@ -268,12 +407,19 @@ function VendorListTable({ rows }: { rows: VendorTableRow[] }) {
   );
 }
 
-function VendorGridCard({ card }: { card: VendorGridCard }) {
+function VendorGridCard({
+  card,
+  deletingVendorId,
+  onDelete,
+  onEdit,
+}: {
+  card: VendorGridCard;
+  deletingVendorId: string;
+  onDelete: (vendorId: string) => void;
+  onEdit: (vendorId: string) => void;
+}) {
   return (
-    <Link
-      href={`/dashboard/vendors/${card.slug}`}
-      className="rounded-[1.8rem] border border-[#e8edf4] bg-white shadow-[0_18px_40px_rgba(20,31,56,0.04)] transition-transform hover:-translate-y-0.5"
-    >
+    <article className="rounded-[1.8rem] border border-[#e8edf4] bg-white shadow-[0_18px_40px_rgba(20,31,56,0.04)] transition-transform hover:-translate-y-0.5">
       <div
         className="relative h-24 rounded-t-[1.8rem]"
         style={{
@@ -291,7 +437,12 @@ function VendorGridCard({ card }: { card: VendorGridCard }) {
         <div className="-mt-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl border-4 border-white bg-[#24354c] text-lg font-semibold text-white shadow-[0_12px_28px_rgba(20,31,56,0.18)]">
           {card.initials}
         </div>
-        <h3 className="mt-5 text-[1.5rem] font-semibold tracking-tight text-[#17213d]">{card.name}</h3>
+        <Link
+          href={`/dashboard/vendors/${card.slug}`}
+          className="mt-5 block text-[1.5rem] font-semibold tracking-tight text-[#17213d] transition-colors hover:text-[#477640]"
+        >
+          {card.name}
+        </Link>
         <p className="mt-1 text-[1.02rem] text-[#71829a]">{card.category}</p>
 
         <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#eef3f8] px-3 py-1 text-sm font-semibold text-[#477640]">
@@ -315,10 +466,35 @@ function VendorGridCard({ card }: { card: VendorGridCard }) {
             <span className={`h-2.5 w-2.5 rounded-full ${card.status === "active" ? "bg-[#14b252]" : card.status === "under-audit" ? "bg-[#f2a21a]" : card.status === "fresh-onboard" ? "bg-[#477640]" : "bg-[#cbd5e1]"}`} />
             <span>{statusText(card.status)}</span>
           </div>
-          <span className="text-2xl text-[#9aa6ba]">⋮</span>
+          <div className="flex items-center gap-3 text-[#94a3b8]">
+            <Link
+              href={`/dashboard/vendors/${card.slug}`}
+              className="transition-colors hover:text-[#477640]"
+              aria-label={`View ${card.name}`}
+            >
+              <EyeIcon />
+            </Link>
+            <button
+              type="button"
+              onClick={() => onEdit(card.id)}
+              className="transition-colors hover:text-[#477640]"
+              aria-label={`Edit ${card.name}`}
+            >
+              <EditIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(card.id)}
+              disabled={deletingVendorId === card.id}
+              className="transition-colors hover:text-[#dc2626] disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={`Delete ${card.name}`}
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -327,22 +503,181 @@ export function VendorNetworkPage() {
   const [category, setCategory] = useState("All Categories");
   const [status, setStatus] = useState("All Status");
   const [query, setQuery] = useState("");
+  const [vendors, setVendors] = useState<VendorRecord[]>([]);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [editingVendor, setEditingVendor] = useState<VendorRecord | null>(null);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [deletingVendorId, setDeletingVendorId] = useState("");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadVendors() {
+      setIsLoading(true);
+      setPageError("");
+
+      try {
+        const response = await fetch("/api/v1/vendors", {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as ApiListVendorsResponse;
+
+        if (!response.ok || !payload.success) {
+          throw new Error(
+            payload.success ? "Unable to load vendors." : payload.error.message,
+          );
+        }
+
+        if (isMounted) {
+          setVendors(payload.data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPageError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load vendors. Please try again.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadVendors();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const liveVendorMetrics = useMemo<VendorMetric[]>(
+    () => [
+      { id: "total", label: "Total Vendors", value: String(vendors.length), tone: "purple" },
+      {
+        id: "active",
+        label: "Active Now",
+        value: String(vendors.filter((vendor) => vendor.status === "ACTIVE").length),
+        tone: "green",
+      },
+      {
+        id: "pending",
+        label: "Fresh Onboard",
+        value: String(vendors.filter((vendor) => vendor.status === "FRESH_ONBOARD").length),
+        tone: "amber",
+      },
+      {
+        id: "rating",
+        label: "Under Audit",
+        value: String(vendors.filter((vendor) => vendor.status === "UNDER_AUDIT").length),
+        tone: "blue",
+      },
+    ],
+    [vendors],
+  );
+
+  const tableRows = useMemo(
+    () => vendors.map((vendor) => vendorRecordToTableRow(vendor)),
+    [vendors],
+  );
+
+  const gridCards = useMemo(
+    () => vendors.map((vendor) => vendorRecordToGridCard(vendor)),
+    [vendors],
+  );
 
   const filteredTableRows = useMemo(
     () =>
-      vendorTableRows.filter((row) =>
+      tableRows.filter((row) =>
         matchesVendorFilters(row, query, category, status),
       ),
-    [category, query, status],
+    [category, query, status, tableRows],
   );
 
   const filteredGridCards = useMemo(
     () =>
-      vendorGridCards.filter((card) =>
+      gridCards.filter((card) =>
         matchesVendorFilters(card, query, category, status),
       ),
-    [category, query, status],
+    [category, query, status, gridCards],
   );
+
+  function openCreateDialog() {
+    setDialogMode("create");
+    setEditingVendor(null);
+    setIsOnboardingOpen(true);
+  }
+
+  function openEditDialog(vendorId: string) {
+    const vendor = vendors.find((item) => item.id === vendorId);
+
+    if (!vendor) {
+      return;
+    }
+
+    setDialogMode("edit");
+    setEditingVendor(vendor);
+    setIsOnboardingOpen(true);
+  }
+
+  function closeVendorDialog() {
+    setIsOnboardingOpen(false);
+    setEditingVendor(null);
+  }
+
+  function handleVendorSaved(vendor: VendorRecord, mode: "create" | "edit") {
+    setVendors((current) => {
+      if (mode === "create") {
+        return [vendor, ...current];
+      }
+
+      return current.map((item) => (item.id === vendor.id ? vendor : item));
+    });
+    setNotice(
+      mode === "create"
+        ? `${vendor.name} was added successfully.`
+        : `${vendor.name} was updated successfully.`,
+    );
+  }
+
+  async function handleVendorDelete(vendorId: string) {
+    const vendor = vendors.find((item) => item.id === vendorId);
+
+    if (!vendor || !window.confirm(`Delete ${vendor.name}?`)) {
+      return;
+    }
+
+    setDeletingVendorId(vendorId);
+    setPageError("");
+
+    try {
+      const response = await fetch(`/api/v1/vendors/${vendorId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getApiErrorMessage(response, "Unable to delete vendor."),
+        );
+      }
+
+      setVendors((current) => current.filter((item) => item.id !== vendorId));
+      setNotice(`${vendor.name} was deleted successfully.`);
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete vendor. Please try again.",
+      );
+    } finally {
+      setDeletingVendorId("");
+    }
+  }
 
   return (
     <DashboardShell mobileTitle="Vendors">
@@ -393,16 +728,29 @@ export function VendorNetworkPage() {
 
             <button
               type="button"
+              onClick={openCreateDialog}
               className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#477640] px-5 text-base font-semibold text-white"
             >
               <AddUserIcon />
-              <span>Onboard Vendor</span>
+              <span>Add Vendor</span>
             </button>
           </div>
         </section>
 
+        {notice ? (
+          <div className="rounded-2xl border border-[#c9ead0] bg-[#f0fff4] px-5 py-4 text-base font-semibold text-[#276238]">
+            {notice}
+          </div>
+        ) : null}
+
+        {pageError ? (
+          <div className="rounded-2xl border border-[#fecaca] bg-[#fff1f2] px-5 py-4 text-base font-semibold text-[#b91c1c]">
+            {pageError}
+          </div>
+        ) : null}
+
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {vendorMetrics.map((metric) => (
+          {liveVendorMetrics.map((metric) => (
             <VendorMetricCard key={metric.id} metric={metric} />
           ))}
         </section>
@@ -445,7 +793,18 @@ export function VendorNetworkPage() {
               </div>
             </DashboardPanel>
 
-            <VendorListTable rows={filteredTableRows} />
+            {isLoading ? (
+              <DashboardPanel>
+                <p className="text-base font-medium text-[#71829a]">Loading vendors...</p>
+              </DashboardPanel>
+            ) : (
+              <VendorListTable
+                rows={filteredTableRows}
+                deletingVendorId={deletingVendorId}
+                onDelete={handleVendorDelete}
+                onEdit={openEditDialog}
+              />
+            )}
 
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_320px]">
               <DashboardPanel className="bg-[#477640] text-white">
@@ -486,9 +845,19 @@ export function VendorNetworkPage() {
           <>
             <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {filteredGridCards.map((card) => (
-                <VendorGridCard key={card.id} card={card} />
+                <VendorGridCard
+                  key={card.id}
+                  card={card}
+                  deletingVendorId={deletingVendorId}
+                  onDelete={handleVendorDelete}
+                  onEdit={openEditDialog}
+                />
               ))}
-              <div className="flex min-h-[356px] flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-[#d7e1ef] bg-[#fbfcff] px-8 text-center shadow-[0_18px_40px_rgba(20,31,56,0.03)]">
+              <button
+                type="button"
+                onClick={openCreateDialog}
+                className="flex min-h-[356px] flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-[#d7e1ef] bg-[#fbfcff] px-8 text-center shadow-[0_18px_40px_rgba(20,31,56,0.03)] transition-colors hover:border-[#477640]"
+              >
                 <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white text-4xl text-[#9fb0c8] shadow-[0_14px_30px_rgba(20,31,56,0.08)]">
                   +
                 </span>
@@ -498,16 +867,16 @@ export function VendorNetworkPage() {
                 <p className="mt-4 max-w-[220px] text-[1.02rem] leading-8 text-[#9aa6ba]">
                   Start a new vendor relationship and expand your catalog.
                 </p>
-              </div>
+              </button>
             </section>
 
             <DashboardPanel>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm font-medium text-[#64748b]">
-                  Showing <span className="font-semibold text-[#17213d]">1-6</span> of{" "}
-                  <span className="font-semibold text-[#17213d]">1,284</span> vendors
+                  Showing <span className="font-semibold text-[#17213d]">{filteredGridCards.length}</span>{" "}
+                  vendors
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="hidden">
                   <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dbe3ee] bg-white text-[#94a3b8]">‹</button>
                   <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#477640] bg-[#477640] px-3 text-sm font-semibold text-white">1</button>
                   <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#dbe3ee] bg-white px-3 text-sm font-semibold text-[#334155]">2</button>
@@ -521,6 +890,17 @@ export function VendorNetworkPage() {
           </>
         )}
       </div>
+
+      {isOnboardingOpen ? (
+        <VendorOnboardingDialog
+          key={`${dialogMode}-${editingVendor?.id ?? "new"}`}
+          open={isOnboardingOpen}
+          mode={dialogMode}
+          vendor={editingVendor}
+          onClose={closeVendorDialog}
+          onSaved={handleVendorSaved}
+        />
+      ) : null}
     </DashboardShell>
   );
 }

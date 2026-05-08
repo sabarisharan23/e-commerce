@@ -71,7 +71,20 @@ export const dashboardMenuItems: DashboardMenuItem[] = [
     href: "/dashboard/categories",
     icon: "categories",
   },
-  { id: "products", label: "Products", href: "/dashboard/products", icon: "products" },
+  {
+    id: "products",
+    label: "Products",
+    href: "/dashboard/products",
+    icon: "products",
+    children: [
+      { id: "products-list", label: "All Products", href: "/dashboard/products" },
+      {
+        id: "products-new",
+        label: "Add New Product",
+        href: "/dashboard/products/new",
+      },
+    ],
+  },
   {
     id: "orders",
     label: "Orders",
