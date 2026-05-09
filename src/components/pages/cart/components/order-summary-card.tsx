@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { formatPrice } from "./cart-shared";
 
 function ShieldIcon() {
@@ -120,7 +119,7 @@ export function OrderSummaryCard({
       >
         <span>{isCheckingOut ? "Placing Order..." : "Proceed to Checkout"}</span>
         <ArrowRightIcon />
-      </Link>
+      </button>
 
       <div className="mt-6 space-y-3 text-sm text-[#7d8ea7]">
         <div className="flex items-center gap-2">

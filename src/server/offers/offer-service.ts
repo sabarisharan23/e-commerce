@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 import { prisma } from "../db/prisma";
 import { apiErrors } from "../http/api-error";
@@ -11,6 +12,7 @@ export type OfferPayload = {
   minSubtotal?: unknown;
   startsAt?: unknown;
   status?: unknown;
+  targetCategory?: unknown;
   title?: unknown;
   type?: unknown;
   usageLimit?: unknown;
@@ -27,6 +29,7 @@ export type OfferDto = {
   minSubtotal: number;
   startsAt: string | null;
   status: OfferStatus;
+  targetCategory: string | null;
   title: string;
   type: OfferType;
   updatedAt: string;
@@ -47,11 +50,70 @@ export type OfferValidationResult = {
   offer: OfferDto;
 };
 
+export type BundleOfferPayload = {
+  bundleCode?: unknown;
+  components?: unknown;
+  discountPercent?: unknown;
+  name?: unknown;
+  primaryProduct?: unknown;
+  status?: unknown;
+};
+
+export type BundleOfferDto = {
+  bundleCode: string;
+  components: string[];
+  createdAt: string;
+  discountPercent: number;
+  id: string;
+  name: string;
+  primaryProduct: string;
+  status: BundleOfferStatus;
+  totalSales: number;
+  unitsSold: number;
+};
+
+export type SeasonalCampaignPayload = {
+  audience?: unknown;
+  campaignCode?: unknown;
+  conversionGoal?: unknown;
+  endsAt?: unknown;
+  incentive?: unknown;
+  projectedImpact?: unknown;
+  startsAt?: unknown;
+  status?: unknown;
+  title?: unknown;
+};
+
+export type SeasonalCampaignDto = {
+  actualRevenue: number;
+  audience: string[];
+  campaignCode: string;
+  conversionGoal: number;
+  createdAt: string;
+  endsAt: string | null;
+  id: string;
+  incentive: string;
+  projectedImpact: number;
+  startsAt: string | null;
+  status: SeasonalCampaignStatus;
+  title: string;
+};
+
 export const offerTypes = ["PERCENTAGE", "FLAT"] as const;
 export type OfferType = (typeof offerTypes)[number];
 
 export const offerStatuses = ["ACTIVE", "PAUSED", "EXPIRED"] as const;
 export type OfferStatus = (typeof offerStatuses)[number];
+
+export const bundleOfferStatuses = ["DRAFT", "ACTIVE", "SCHEDULED", "PAUSED"] as const;
+export type BundleOfferStatus = (typeof bundleOfferStatuses)[number];
+
+export const seasonalCampaignStatuses = [
+  "HAPPENING_NOW",
+  "UPCOMING",
+  "PLANNING",
+] as const;
+export type SeasonalCampaignStatus = (typeof seasonalCampaignStatuses)[number];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -160,6 +222,47 @@ function normalizeStatus(value: unknown, fieldErrors: Record<string, string>) {
   return status as OfferStatus;
 }
 
+function normalizeBundleStatus(value: unknown, fieldErrors: Record<string, string>) {
+  if (value === undefined || value === null || value === "") {
+    return "DRAFT" as BundleOfferStatus;
+  }
+
+  const status = optionalString(value).toUpperCase().replace(/\s+/g, "_");
+
+  if (!bundleOfferStatuses.includes(status as BundleOfferStatus)) {
+    fieldErrors.status = "Choose a valid bundle status.";
+    return "DRAFT" as BundleOfferStatus;
+  }
+
+  return status as BundleOfferStatus;
+}
+
+function normalizeSeasonalStatus(value: unknown, fieldErrors: Record<string, string>) {
+  if (value === undefined || value === null || value === "") {
+    return "PLANNING" as SeasonalCampaignStatus;
+  }
+
+  const status = optionalString(value).toUpperCase().replace(/\s+/g, "_");
+
+  if (!seasonalCampaignStatuses.includes(status as SeasonalCampaignStatus)) {
+    fieldErrors.status = "Choose a valid campaign status.";
+    return "PLANNING" as SeasonalCampaignStatus;
+  }
+
+  return status as SeasonalCampaignStatus;
+}
+
+function normalizeStringList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function toDecimal(value: number) {
   return new Prisma.Decimal(value.toFixed(2));
 }
@@ -174,6 +277,7 @@ function toOfferDto(offer: {
   minSubtotal: Prisma.Decimal;
   startsAt: Date | null;
   status: string;
+  targetCategory: string | null;
   title: string;
   type: string;
   updatedAt: Date;
@@ -193,6 +297,7 @@ function toOfferDto(offer: {
     status: offerStatuses.includes(offer.status as OfferStatus)
       ? (offer.status as OfferStatus)
       : "ACTIVE",
+    targetCategory: offer.targetCategory,
     title: offer.title,
     type: offerTypes.includes(offer.type as OfferType)
       ? (offer.type as OfferType)
@@ -201,6 +306,78 @@ function toOfferDto(offer: {
     usageLimit: offer.usageLimit,
     usedCount: offer.usedCount,
     value: Number(offer.value),
+  };
+}
+
+function createRecordCode(prefix: string) {
+  return `${prefix}-${randomUUID().slice(0, 6).toUpperCase()}`;
+}
+
+function toBundleOfferDto(bundle: {
+  bundleCode: string;
+  components: Prisma.JsonValue;
+  createdAt: Date;
+  discountPercent: Prisma.Decimal;
+  id: string;
+  name: string;
+  primaryProduct: string;
+  status: string;
+  totalSales: Prisma.Decimal;
+  unitsSold: number;
+}): BundleOfferDto {
+  const components = Array.isArray(bundle.components)
+    ? bundle.components.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return {
+    bundleCode: bundle.bundleCode,
+    components,
+    createdAt: bundle.createdAt.toISOString(),
+    discountPercent: Number(bundle.discountPercent),
+    id: bundle.id,
+    name: bundle.name,
+    primaryProduct: bundle.primaryProduct,
+    status: bundleOfferStatuses.includes(bundle.status as BundleOfferStatus)
+      ? (bundle.status as BundleOfferStatus)
+      : "DRAFT",
+    totalSales: Number(bundle.totalSales),
+    unitsSold: bundle.unitsSold,
+  };
+}
+
+function toSeasonalCampaignDto(campaign: {
+  actualRevenue: Prisma.Decimal;
+  audience: Prisma.JsonValue;
+  campaignCode: string;
+  conversionGoal: Prisma.Decimal;
+  createdAt: Date;
+  endsAt: Date | null;
+  id: string;
+  incentive: string;
+  projectedImpact: Prisma.Decimal;
+  startsAt: Date | null;
+  status: string;
+  title: string;
+}): SeasonalCampaignDto {
+  const audience = Array.isArray(campaign.audience)
+    ? campaign.audience.filter((item): item is string => typeof item === "string")
+    : [];
+
+  return {
+    actualRevenue: Number(campaign.actualRevenue),
+    audience,
+    campaignCode: campaign.campaignCode,
+    conversionGoal: Number(campaign.conversionGoal),
+    createdAt: campaign.createdAt.toISOString(),
+    endsAt: campaign.endsAt?.toISOString() ?? null,
+    id: campaign.id,
+    incentive: campaign.incentive,
+    projectedImpact: Number(campaign.projectedImpact),
+    startsAt: campaign.startsAt?.toISOString() ?? null,
+    status: seasonalCampaignStatuses.includes(campaign.status as SeasonalCampaignStatus)
+      ? (campaign.status as SeasonalCampaignStatus)
+      : "PLANNING",
+    title: campaign.title,
   };
 }
 
@@ -235,6 +412,7 @@ function normalizeCreateOfferPayload(payload: OfferPayload) {
     fieldErrors,
   );
   const status = normalizeStatus(payload.status, fieldErrors);
+  const targetCategory = optionalString(payload.targetCategory) || null;
 
   if (code.length < 3) {
     fieldErrors.code = "Coupon code must be at least 3 characters.";
@@ -264,6 +442,7 @@ function normalizeCreateOfferPayload(payload: OfferPayload) {
     minSubtotal,
     startsAt,
     status,
+    targetCategory,
     title,
     type,
     usageLimit,
@@ -355,6 +534,10 @@ function normalizeUpdateOfferPayload(payload: OfferPayload) {
     normalized.status = normalizeStatus(payload.status, fieldErrors);
   }
 
+  if (hasOwnField(payload, "targetCategory")) {
+    normalized.targetCategory = optionalString(payload.targetCategory) || null;
+  }
+
   if (hasOwnField(payload, "usageLimit")) {
     normalized.usageLimit = normalizeInteger(
       payload.usageLimit,
@@ -394,6 +577,7 @@ function normalizeUpdateOfferPayload(payload: OfferPayload) {
   if (normalized.startsAt !== undefined) data.startsAt = normalized.startsAt as Date | null;
   if (normalized.endsAt !== undefined) data.endsAt = normalized.endsAt as Date | null;
   if (normalized.status !== undefined) data.status = normalized.status as string;
+  if (normalized.targetCategory !== undefined) data.targetCategory = normalized.targetCategory as string | null;
   if (normalized.usageLimit !== undefined) data.usageLimit = normalized.usageLimit as number | null;
 
   return data;
@@ -478,6 +662,7 @@ export async function createOffer(payload: OfferPayload): Promise<OfferDto> {
         minSubtotal: toDecimal(offer.minSubtotal),
         startsAt: offer.startsAt,
         status: offer.status,
+        targetCategory: offer.targetCategory,
         title: offer.title,
         type: offer.type,
         usageLimit: offer.usageLimit,
@@ -535,6 +720,198 @@ export async function deleteOffer(offerId: string): Promise<void> {
   } catch (error) {
     if (isRecordNotFoundError(error)) {
       throw apiErrors.notFound("Offer was not found.", { offerId });
+    }
+
+    throw error;
+  }
+}
+
+function normalizeBundleOfferPayload(payload: BundleOfferPayload) {
+  if (!isRecord(payload)) {
+    throw apiErrors.validation("Bundle details are invalid.", {
+      form: "Request body must be an object.",
+    });
+  }
+
+  const fieldErrors: Record<string, string> = {};
+  const name = optionalString(payload.name);
+  const primaryProduct = optionalString(payload.primaryProduct);
+  const bundleCode =
+    normalizeCode(payload.bundleCode) || createRecordCode("BNDL");
+  const discountPercent =
+    normalizeMoney(
+      payload.discountPercent,
+      "discountPercent",
+      "Bundle discount",
+      fieldErrors,
+      true,
+    ) ?? 0;
+  const status = normalizeBundleStatus(payload.status, fieldErrors);
+  const components = normalizeStringList(payload.components);
+
+  if (name.length < 2) {
+    fieldErrors.name = "Bundle name must be at least 2 characters.";
+  }
+
+  if (primaryProduct.length < 2) {
+    fieldErrors.primaryProduct = "Primary product is required.";
+  }
+
+  if (discountPercent > 100) {
+    fieldErrors.discountPercent = "Bundle discount cannot exceed 100%.";
+  }
+
+  if (components.length === 0) {
+    fieldErrors.components = "Add at least one bundled product.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw apiErrors.validation("Bundle details are invalid.", fieldErrors);
+  }
+
+  return {
+    bundleCode,
+    components,
+    discountPercent,
+    name,
+    primaryProduct,
+    status,
+  };
+}
+
+function normalizeSeasonalCampaignPayload(payload: SeasonalCampaignPayload) {
+  if (!isRecord(payload)) {
+    throw apiErrors.validation("Campaign details are invalid.", {
+      form: "Request body must be an object.",
+    });
+  }
+
+  const fieldErrors: Record<string, string> = {};
+  const title = optionalString(payload.title);
+  const campaignCode =
+    normalizeCode(payload.campaignCode) || createRecordCode("CMP");
+  const incentive = optionalString(payload.incentive) || "Store-wide 20% Off";
+  const status = normalizeSeasonalStatus(payload.status, fieldErrors);
+  const startsAt = normalizeDate(payload.startsAt, "startsAt", fieldErrors);
+  const endsAt = normalizeDate(payload.endsAt, "endsAt", fieldErrors);
+  const conversionGoal =
+    normalizeMoney(
+      payload.conversionGoal,
+      "conversionGoal",
+      "Conversion goal",
+      fieldErrors,
+      false,
+    ) ?? 12.5;
+  const projectedImpact =
+    normalizeMoney(
+      payload.projectedImpact,
+      "projectedImpact",
+      "Projected impact",
+      fieldErrors,
+      false,
+    ) ?? 0;
+  const audience = normalizeStringList(payload.audience);
+
+  if (title.length < 2) {
+    fieldErrors.title = "Campaign title must be at least 2 characters.";
+  }
+
+  if (startsAt && endsAt && startsAt > endsAt) {
+    fieldErrors.endsAt = "End date must be after start date.";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw apiErrors.validation("Campaign details are invalid.", fieldErrors);
+  }
+
+  return {
+    audience,
+    campaignCode,
+    conversionGoal,
+    endsAt,
+    incentive,
+    projectedImpact,
+    startsAt,
+    status,
+    title,
+  };
+}
+
+export async function listBundleOffers(): Promise<BundleOfferDto[]> {
+  const bundles = await prisma.bundleOffer.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return bundles.map(toBundleOfferDto);
+}
+
+export async function createBundleOffer(
+  payload: BundleOfferPayload,
+): Promise<BundleOfferDto> {
+  const bundle = normalizeBundleOfferPayload(payload);
+
+  try {
+    const createdBundle = await prisma.bundleOffer.create({
+      data: {
+        bundleCode: bundle.bundleCode,
+        components: bundle.components,
+        discountPercent: toDecimal(bundle.discountPercent),
+        name: bundle.name,
+        primaryProduct: bundle.primaryProduct,
+        status: bundle.status,
+      },
+    });
+
+    return toBundleOfferDto(createdBundle);
+  } catch (error) {
+    if (isUniqueConstraintError(error, "bundleCode")) {
+      throw apiErrors.conflict("A bundle with this code already exists.", {
+        bundleCode: bundle.bundleCode,
+      });
+    }
+
+    throw error;
+  }
+}
+
+export async function listSeasonalCampaigns(): Promise<SeasonalCampaignDto[]> {
+  const campaigns = await prisma.seasonalCampaign.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return campaigns.map(toSeasonalCampaignDto);
+}
+
+export async function createSeasonalCampaign(
+  payload: SeasonalCampaignPayload,
+): Promise<SeasonalCampaignDto> {
+  const campaign = normalizeSeasonalCampaignPayload(payload);
+
+  try {
+    const createdCampaign = await prisma.seasonalCampaign.create({
+      data: {
+        audience: campaign.audience,
+        campaignCode: campaign.campaignCode,
+        conversionGoal: toDecimal(campaign.conversionGoal),
+        endsAt: campaign.endsAt,
+        incentive: campaign.incentive,
+        projectedImpact: toDecimal(campaign.projectedImpact),
+        startsAt: campaign.startsAt,
+        status: campaign.status,
+        title: campaign.title,
+      },
+    });
+
+    return toSeasonalCampaignDto(createdCampaign);
+  } catch (error) {
+    if (isUniqueConstraintError(error, "campaignCode")) {
+      throw apiErrors.conflict("A campaign with this code already exists.", {
+        campaignCode: campaign.campaignCode,
+      });
     }
 
     throw error;

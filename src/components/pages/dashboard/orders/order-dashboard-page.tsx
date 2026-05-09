@@ -1,11 +1,9 @@
 "use client";
 
+import type { DashboardOrderOverview } from "@/server/orders/order-service";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import {
   orderDashboardContent,
-  orderDashboardMetrics,
-  orderStatusBreakdown,
-  recentOrderRows,
   regionalDemand,
 } from "./orders-data";
 
@@ -36,7 +34,7 @@ function statusClass(status: string) {
   return "bg-[#ffeaea] text-[#d53b3b]";
 }
 
-function MetricCard({ card }: { card: (typeof orderDashboardMetrics)[number] }) {
+function MetricCard({ card }: { card: DashboardOrderOverview["metrics"][number] }) {
   const helperClass =
     card.tone === "green"
       ? "text-[#477640]"
@@ -55,18 +53,24 @@ function MetricCard({ card }: { card: (typeof orderDashboardMetrics)[number] }) 
   );
 }
 
-function StatusBreakdownRing() {
+function StatusBreakdownRing({
+  breakdown,
+  totalOrdersLabel,
+}: {
+  breakdown: DashboardOrderOverview["statusBreakdown"];
+  totalOrdersLabel: string;
+}) {
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex h-[240px] w-[240px] items-center justify-center">
         <div className="absolute h-[184px] w-[184px] rounded-full border-[24px] border-[#f5a000]" />
         <div className="absolute text-center">
-          <p className="text-[3rem] font-semibold tracking-tight text-[#17213d]">1.2k</p>
+          <p className="text-[3rem] font-semibold tracking-tight text-[#17213d]">{totalOrdersLabel}</p>
           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6f7d92]">Total</p>
         </div>
       </div>
       <div className="mt-5 w-full space-y-4">
-        {orderStatusBreakdown.map((item) => (
+        {breakdown.map((item) => (
           <div key={item.label} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xl text-[#17213d]">
               <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -80,7 +84,7 @@ function StatusBreakdownRing() {
   );
 }
 
-export function OrderDashboardPage() {
+export function OrderDashboardPage({ overview }: { overview: DashboardOrderOverview }) {
   return (
     <DashboardShell mobileTitle="Orders">
       <div className="space-y-8">
@@ -102,7 +106,7 @@ export function OrderDashboardPage() {
         </section>
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {orderDashboardMetrics.map((card) => (
+          {overview.metrics.map((card) => (
             <MetricCard key={card.id} card={card} />
           ))}
         </section>
@@ -114,7 +118,10 @@ export function OrderDashboardPage() {
               <span className="text-2xl text-[#94a3b8]">⋯</span>
             </div>
             <div className="mt-6">
-              <StatusBreakdownRing />
+              <StatusBreakdownRing
+                breakdown={overview.statusBreakdown}
+                totalOrdersLabel={overview.totalOrdersLabel}
+              />
             </div>
           </DashboardPanel>
 
@@ -135,7 +142,14 @@ export function OrderDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentOrderRows.map((row) => (
+                  {overview.recentRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-12 text-center text-base font-semibold text-[#71829a]">
+                        No customer orders have been placed yet.
+                      </td>
+                    </tr>
+                  ) : null}
+                  {overview.recentRows.map((row) => (
                     <tr key={row.id}>
                       <td className="border-b border-[#edf1f6] px-4 py-5 text-[1.02rem] font-semibold text-[#17213d]">{row.id}</td>
                       <td className="border-b border-[#edf1f6] px-4 py-5">

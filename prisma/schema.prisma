@@ -102,6 +102,7 @@ model Offer {
   code        String    @unique
   title       String
   description String?
+  targetCategory String?
   type        String
   value       Decimal   @db.Decimal(10, 2)
   maxDiscount Decimal?  @db.Decimal(10, 2)
@@ -116,6 +117,40 @@ model Offer {
   orders      Order[]
 
   @@map("offers")
+}
+
+model BundleOffer {
+  id             String   @id @default(cuid())
+  bundleCode     String   @unique
+  name           String
+  primaryProduct String
+  discountPercent Decimal @db.Decimal(5, 2)
+  status         String   @default("DRAFT")
+  totalSales     Decimal  @default(0) @db.Decimal(10, 2)
+  unitsSold      Int      @default(0)
+  components     Json     @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("bundle_offers")
+}
+
+model SeasonalCampaign {
+  id             String   @id @default(cuid())
+  campaignCode   String   @unique
+  title          String
+  status         String   @default("PLANNING")
+  incentive      String
+  audience       Json     @default("[]")
+  startsAt       DateTime?
+  endsAt         DateTime?
+  conversionGoal Decimal  @default(0) @db.Decimal(5, 2)
+  projectedImpact Decimal @default(0) @db.Decimal(10, 2)
+  actualRevenue  Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("seasonal_campaigns")
 }
 
 model Order {

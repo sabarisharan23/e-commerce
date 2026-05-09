@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import type {
+  DashboardOrderManagementRow,
+  DashboardOrderMetric,
+} from "@/server/orders/order-service";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import {
   orderManagementContent,
-  orderManagementMetrics,
-  orderManagementRows,
   orderManagementTabs,
 } from "./orders-data";
 
@@ -71,15 +73,21 @@ function statusClass(status: string) {
   return "bg-[#ffe6ea] text-[#d53b3b]";
 }
 
-export function OrderManagementPage() {
+export function OrderManagementPage({
+  metrics,
+  rows,
+}: {
+  metrics: DashboardOrderMetric[];
+  rows: DashboardOrderManagementRow[];
+}) {
   const [activeTab, setActiveTab] = useState("All Orders");
 
   const visibleRows = useMemo(() => {
-    if (activeTab === "All Orders") return orderManagementRows;
-    return orderManagementRows.filter(
+    if (activeTab === "All Orders") return rows;
+    return rows.filter(
       (row) => row.status.toLowerCase() === activeTab.toLowerCase(),
     );
-  }, [activeTab]);
+  }, [activeTab, rows]);
 
   return (
     <DashboardShell mobileTitle="Order Management">
@@ -102,7 +110,7 @@ export function OrderManagementPage() {
         </section>
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {orderManagementMetrics.map((card) => (
+          {metrics.map((card) => (
             <article key={card.id} className="rounded-[1.8rem] border border-[#e8edf4] bg-white px-6 py-5 shadow-[0_18px_40px_rgba(20,31,56,0.04)]">
               <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#7f8ea6]">{card.label}</p>
               <div className="mt-3 flex items-center justify-between gap-3">
@@ -150,6 +158,13 @@ export function OrderManagementPage() {
                 </tr>
               </thead>
               <tbody>
+                {visibleRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-base font-semibold text-[#71829a]">
+                      No orders found for this status.
+                    </td>
+                  </tr>
+                ) : null}
                 {visibleRows.map((row) => (
                   <tr key={row.id}>
                     <td className="border-b border-[#edf1f6] px-6 py-5 text-[1.02rem] font-semibold text-[#477640]">{row.id}</td>
@@ -179,7 +194,7 @@ export function OrderManagementPage() {
           </div>
 
           <div className="mt-6 flex flex-col gap-4 border-t border-[#edf1f6] pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-[#64748b]">Showing 1 to {visibleRows.length} of 24 orders</p>
+            <p className="text-sm font-medium text-[#64748b]">Showing 1 to {visibleRows.length} of {rows.length} orders</p>
             <div className="flex items-center gap-2">
               <ArrowButton direction="left" />
               <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#477640] bg-[#477640] px-3 text-sm font-semibold text-white">1</button>

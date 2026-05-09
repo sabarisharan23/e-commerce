@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import type { DashboardOrderDetail } from "@/server/orders/order-service";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import {
   orderDetailContent,
@@ -82,19 +83,23 @@ function TimelineIcon({ state }: { state: "done" | "current" | "pending" }) {
   return <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#edf1ec] text-[#c9d3c6]">•</span>;
 }
 
-export function OrderDetailPage() {
+export function OrderDetailPage({ detail }: { detail?: DashboardOrderDetail }) {
+  const content = detail ?? orderDetailContent;
+  const items = detail?.items ?? orderDetailItems;
+  const timeline = detail?.timeline ?? orderTimeline;
+
   return (
     <DashboardShell mobileTitle="Order Detail">
       <div className="space-y-8">
         <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[2.4rem] font-semibold tracking-tight text-[#17213d]">Order #{orderDetailContent.orderId}</h1>
+              <h1 className="text-[2.4rem] font-semibold tracking-tight text-[#17213d]">Order #{content.orderId}</h1>
               <span className="inline-flex rounded-lg bg-[#eaf7ee] px-3 py-1 text-sm font-semibold uppercase tracking-[0.04em] text-[#477640]">
-                {orderDetailContent.status}
+                {content.status}
               </span>
             </div>
-            <p className="mt-2 text-[1.02rem] text-[#71829a]">{orderDetailContent.description}</p>
+            <p className="mt-2 text-[1.02rem] text-[#71829a]">{content.description}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <button type="button" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#dde5ef] bg-white px-5 text-base font-semibold text-[#24304a]">
@@ -117,10 +122,10 @@ export function OrderDetailPage() {
             <div className="flex flex-col gap-4 border-b border-[#edf1f6] pb-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#6f7d92]">Customer Profile</p>
-                <h2 className="mt-4 text-[2.8rem] font-semibold tracking-tight text-[#17213d]">{orderDetailContent.customerName}</h2>
+                <h2 className="mt-4 text-[2.8rem] font-semibold tracking-tight text-[#17213d]">{content.customerName}</h2>
               </div>
               <span className="inline-flex rounded-full bg-[#ffe3b5] px-4 py-2 text-sm font-semibold uppercase tracking-[0.08em] text-[#8b6111]">
-                {orderDetailContent.memberLabel}
+                {content.memberLabel}
               </span>
             </div>
             <div className="mt-8 grid gap-6 md:grid-cols-2">
@@ -128,21 +133,21 @@ export function OrderDetailPage() {
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f4f5f1] text-[#6b715c]"><MailIcon /></span>
                 <div>
                   <p className="text-[1.02rem] text-[#6f7d92]">Email Address</p>
-                  <p className="mt-1 text-xl font-medium text-[#17213d]">{orderDetailContent.customerEmail}</p>
+                  <p className="mt-1 text-xl font-medium text-[#17213d]">{content.customerEmail}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f4f5f1] text-[#6b715c]"><PinIcon /></span>
                 <div>
                   <p className="text-[1.02rem] text-[#6f7d92]">Shipping Address</p>
-                  <p className="mt-1 text-xl font-medium leading-8 text-[#17213d]">{orderDetailContent.shippingAddress}</p>
+                  <p className="mt-1 text-xl font-medium leading-8 text-[#17213d]">{content.shippingAddress}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#f4f5f1] text-[#6b715c]"><PhoneIcon /></span>
                 <div>
                   <p className="text-[1.02rem] text-[#6f7d92]">Phone Number</p>
-                  <p className="mt-1 text-xl font-medium text-[#17213d]">{orderDetailContent.customerPhone}</p>
+                  <p className="mt-1 text-xl font-medium text-[#17213d]">{content.customerPhone}</p>
                 </div>
               </div>
             </div>
@@ -150,15 +155,15 @@ export function OrderDetailPage() {
 
           <DashboardPanel className="bg-[#477640] text-white">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#d6e7d2]">Total Harvest Value</p>
-            <p className="mt-5 text-[4rem] font-semibold tracking-tight">{orderDetailContent.harvestValue}</p>
-            <p className="mt-3 text-[1.02rem] text-[#dce8d8]">{orderDetailContent.harvestChange}</p>
+            <p className="mt-5 text-[4rem] font-semibold tracking-tight">{content.harvestValue}</p>
+            <p className="mt-3 text-[1.02rem] text-[#dce8d8]">{content.harvestChange}</p>
             <div className="mt-16">
               <div className="mb-2 flex items-center justify-between gap-3 text-[1.02rem] text-[#dce8d8]">
                 <span>Fulfillment Progress</span>
-                <span>{orderDetailContent.fulfillmentPercent}%</span>
+                <span>{content.fulfillmentPercent}%</span>
               </div>
               <div className="h-2 rounded-full bg-[#6b9464]">
-                <div className="h-2 rounded-full bg-[#d8ead3]" style={{ width: `${orderDetailContent.fulfillmentPercent}%` }} />
+                <div className="h-2 rounded-full bg-[#d8ead3]" style={{ width: `${content.fulfillmentPercent}%` }} />
               </div>
             </div>
           </DashboardPanel>
@@ -183,7 +188,7 @@ export function OrderDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orderDetailItems.map((item) => (
+                    {items.map((item) => (
                       <tr key={item.id}>
                         <td className="border-b border-[#edf1f6] px-4 py-5">
                           <div className="flex items-center gap-4">
@@ -206,7 +211,7 @@ export function OrderDetailPage() {
               </div>
               <div className="mt-5 flex justify-end gap-8 border-t border-[#edf1f6] pt-5">
                 <span className="text-[1.02rem] font-semibold uppercase tracking-[0.12em] text-[#6f7d92]">Subtotal</span>
-                <span className="text-[2rem] font-semibold text-[#17213d]">{orderDetailContent.subtotal}</span>
+                <span className="text-[2rem] font-semibold text-[#17213d]">{content.subtotal}</span>
               </div>
             </DashboardPanel>
           </div>
@@ -218,7 +223,7 @@ export function OrderDetailPage() {
             </div>
             <DashboardPanel>
               <div className="relative space-y-10 before:absolute before:left-[13px] before:top-3 before:h-[calc(100%-1.5rem)] before:w-px before:bg-[#e1e7dd]">
-                {orderTimeline.map((step) => (
+                {timeline.map((step) => (
                   <div key={step.id} className="relative flex gap-5">
                     <div className="relative z-10"><TimelineIcon state={step.state} /></div>
                     <div className={step.state === "pending" ? "opacity-50" : ""}>
@@ -235,7 +240,7 @@ export function OrderDetailPage() {
 
             <DashboardPanel className="bg-[#f9faf7]">
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#6f7d92]">Internal Curation Note</p>
-              <p className="mt-5 text-[1.05rem] leading-9 text-[#64748b]">{orderDetailContent.note}</p>
+              <p className="mt-5 text-[1.05rem] leading-9 text-[#64748b]">{content.note}</p>
             </DashboardPanel>
           </div>
         </section>
