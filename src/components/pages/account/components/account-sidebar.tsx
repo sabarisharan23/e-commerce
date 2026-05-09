@@ -12,7 +12,7 @@ function SidebarIcon({ icon }: { icon: AccountMenuItem["icon"] }) {
   const commonProps = {
     "aria-hidden": "true",
     viewBox: "0 0 24 24",
-    className: "h-5 w-5 stroke-current",
+    className: "h-4 w-4 stroke-current",
     fill: "none",
     strokeWidth: "2",
     strokeLinecap: "round",
@@ -69,7 +69,7 @@ function SignOutIcon() {
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      className="h-5 w-5 stroke-current"
+      className="h-4 w-4 stroke-current"
       fill="none"
       strokeWidth="2"
       strokeLinecap="round"
@@ -120,20 +120,20 @@ export function AccountSidebar({
               key={item.id}
               type="button"
               onClick={() => onSectionChange(item.id)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-base font-medium transition-colors ${
+              className={`grid min-h-11 w-full grid-cols-[1rem_minmax(0,1fr)] items-center gap-3 rounded-2xl px-3.5 py-2.5 text-left text-[0.82rem] font-semibold leading-4 transition-colors ${
                 activeSection === item.id
                   ? "bg-[#fbf7e5] text-[#426c3c]"
                   : "text-[#1f2c47] hover:bg-[#f6f8fb]"
               }`}
             >
               <span
-                className={
+                className={`inline-flex h-4 w-4 items-center justify-center ${
                   activeSection === item.id ? "text-[#426c3c]" : "text-[#1f2c47]"
-                }
+                }`}
               >
                 <SidebarIcon icon={item.icon} />
               </span>
-              <span>{item.label}</span>
+              <span className="min-w-0 truncate">{item.label}</span>
             </button>
           ))}
         </nav>
@@ -142,7 +142,7 @@ export function AccountSidebar({
           <button
             type="button"
             onClick={onSignOut}
-            className="inline-flex items-center gap-3 text-base font-medium text-[#ff4d4f] transition-colors hover:text-[#dd3a3d]"
+            className="grid min-h-11 w-full grid-cols-[1rem_minmax(0,1fr)] items-center gap-3 rounded-2xl px-3.5 py-2.5 text-left text-[0.82rem] font-semibold text-[#ff4d4f] transition-colors hover:bg-[#fff5f5] hover:text-[#dd3a3d]"
           >
             <SignOutIcon />
             <span>Sign Out</span>

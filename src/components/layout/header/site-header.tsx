@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthModal } from "@/components/shared/auth/auth-modal";
@@ -139,18 +140,16 @@ function HeadsetIcon() {
 
 function LogoMark() {
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label="Theni Store home">
-      <div className="flex flex-col leading-none">
-        <span className="text-[1.95rem] font-extrabold tracking-tight text-[#2f6b2f] sm:text-[2.2rem]">
-          Theni
-        </span>
-        <span className="mt-1 text-[0.5rem] font-medium uppercase tracking-[0.15em] text-[#6a7d61] sm:text-[0.52rem]">
-          Nature&apos;s Bowl of Goodness.
-        </span>
-      </div>
-      <span className="pt-1.5 text-base font-semibold text-[#1a1a1a] sm:pt-2 sm:text-lg">
-        Store
-      </span>
+    <Link href="/" className="inline-flex items-center" aria-label="Theni Store home">
+      <Image
+        src="/images/logo.png"
+        alt="Theni Store"
+        width={2458}
+        height={1745}
+        priority
+        sizes="(max-width: 640px) 6.5rem, 7.5rem"
+        className="h-14 w-auto object-contain sm:h-16"
+      />
     </Link>
   );
 }

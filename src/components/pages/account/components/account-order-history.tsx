@@ -127,7 +127,7 @@ function OrderHistoryTable({
 }) {
   return (
     <>
-      <div className="hidden lg:grid lg:grid-cols-[1.1fr_0.9fr_1.4fr_1fr_1.05fr_1.2fr] lg:gap-5 lg:px-6 lg:py-4">
+      <div className="hidden lg:grid lg:grid-cols-[1.05fr_1fr_1.45fr_0.9fr_1fr_1.65fr] lg:gap-5 lg:px-6 lg:py-4">
         {["Order ID", "Date", "Items", "Total", "Status", "Actions"].map((heading) => (
           <p
             key={heading}
@@ -142,13 +142,13 @@ function OrderHistoryTable({
         {orders.map((order) => (
           <article
             key={order.id}
-            className="grid gap-5 px-5 py-5 lg:grid-cols-[1.1fr_0.9fr_1.4fr_1fr_1.05fr_1.2fr] lg:items-center lg:gap-5 lg:px-6"
+            className="grid gap-5 px-5 py-5 lg:grid-cols-[1.05fr_1fr_1.45fr_0.9fr_1fr_1.65fr] lg:items-center lg:gap-5 lg:px-6 lg:py-4"
           >
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Order ID
               </p>
-              <p className="mt-2 text-[1.7rem] font-semibold tracking-tight text-[#1a2540] lg:mt-0 lg:text-[1.6rem]">
+              <p className="mt-2 text-base font-semibold text-[#1a2540] lg:mt-0">
                 {order.orderId}
               </p>
             </div>
@@ -157,7 +157,7 @@ function OrderHistoryTable({
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Date
               </p>
-              <div className="mt-2 flex gap-1 text-base font-medium text-[#55657e] lg:mt-0 lg:flex-col lg:gap-0 lg:text-[1.05rem] lg:leading-7">
+              <div className="mt-2 flex gap-1 text-sm font-medium text-[#55657e] lg:mt-0">
                 {formatDateLabel(order.date)}
               </div>
             </div>
@@ -166,46 +166,48 @@ function OrderHistoryTable({
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Items
               </p>
-              <p className="mt-2 truncate text-[1.35rem] font-medium text-[#1f2c47] lg:mt-0 lg:text-[1.28rem]">
+              <p className="mt-2 truncate text-base font-medium text-[#1f2c47] lg:mt-0">
                 {order.itemName}
               </p>
-              <p className="mt-1 text-sm font-medium text-[#98a5b9]">{order.itemMeta}</p>
+              <p className="mt-1 text-xs font-medium text-[#98a5b9]">
+                {order.itemMeta}
+              </p>
             </div>
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Total
               </p>
-              <p className="mt-2 text-[1.55rem] font-semibold tracking-tight text-[#1a2540] lg:mt-0">
+              <p className="mt-2 text-base font-semibold text-[#1a2540] lg:mt-0">
                 {order.total}
               </p>
             </div>
 
-            <div>
+            <div className="lg:justify-self-start">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Status
               </p>
               <span
-                className={`mt-2 inline-flex rounded-full px-4 py-2 text-sm font-semibold lg:mt-0 ${getStatusClassName(order.status)}`}
+                className={`mt-2 inline-flex min-w-[108px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold lg:mt-0 ${getStatusClassName(order.status)}`}
               >
                 {getStatusLabel(order.status)}
               </span>
             </div>
 
-            <div>
+            <div className="lg:justify-self-end">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#9aabc2] lg:hidden">
                 Actions
               </p>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row lg:mt-0 lg:justify-end">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row lg:mt-0 lg:items-center lg:justify-end">
                 <button
                   type="button"
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#dbe3ee] px-5 text-sm font-semibold text-[#1f2c47] transition-colors hover:bg-[#f8fafc]"
+                  className="inline-flex h-10 min-w-[126px] items-center justify-center whitespace-nowrap rounded-xl border border-[#dbe3ee] px-4 text-sm font-semibold text-[#1f2c47] transition-colors hover:bg-[#f8fafc]"
                 >
                   View Details
                 </button>
                 <button
                   type="button"
-                  className={`inline-flex h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold transition-colors ${
+                  className={`inline-flex h-10 min-w-[112px] items-center justify-center whitespace-nowrap rounded-xl px-4 text-sm font-semibold transition-colors ${
                     order.status === "in-progress"
                       ? "border border-[#cad7c8] bg-[#eef4eb] text-[#487540] hover:bg-[#e5efdf]"
                       : "bg-[#487540] text-white hover:bg-[#3d6437]"
@@ -303,10 +305,10 @@ export function AccountOrderHistory() {
     <div className="space-y-7">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <h1 className="text-[2.4rem] font-semibold tracking-tight text-[#1a2540] sm:text-[3rem]">
+          <h1 className="text-[2rem] font-semibold tracking-tight text-[#1a2540] sm:text-[2.35rem]">
             Order History
           </h1>
-          <p className="mt-2 text-base leading-8 text-[#64738c] sm:text-lg">
+          <p className="mt-2 text-sm leading-7 text-[#64738c] sm:text-base">
             Manage your organic purchases and track deliveries.
           </p>
         </div>
@@ -320,7 +322,7 @@ export function AccountOrderHistory() {
                 setActiveFilter(option.id);
                 setCurrentPage(1);
               }}
-              className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-colors xl:flex-none xl:min-w-[110px] ${
+              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors xl:flex-none xl:min-w-[110px] ${
                 activeFilter === option.id
                   ? "bg-white text-[#1f2c47] shadow-[0_10px_22px_rgba(20,31,56,0.08)]"
                   : "text-[#6f7f98] hover:text-[#1f2c47]"
@@ -350,7 +352,7 @@ export function AccountOrderHistory() {
         )}
 
         <div className="flex flex-col gap-4 border-t border-[#edf1f6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-base font-medium text-[#7b89a0]">
+          <p className="text-sm font-medium text-[#7b89a0]">
             Showing {(safePage - 1) * ROWS_PER_PAGE + 1} to{" "}
             {Math.min(safePage * ROWS_PER_PAGE, filteredOrders.length)} of{" "}
             {filteredOrders.length} results

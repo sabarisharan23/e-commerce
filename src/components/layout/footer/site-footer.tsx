@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const quickLinks = [
@@ -111,18 +112,15 @@ function PhoneIcon() {
 
 function FooterLogo() {
   return (
-    <Link href="/" className="inline-flex items-start gap-3" aria-label="Theni Store home">
-      <div className="flex flex-col leading-none">
-        <span className="text-[2.7rem] font-extrabold tracking-tight text-[#2f6b2f] sm:text-[3.1rem]">
-          Theni
-        </span>
-        <span className="-mt-1 text-[0.72rem] font-semibold text-[#111] sm:text-xs">
-          Nature&apos;s Bowl of Goodness.
-        </span>
-      </div>
-      <span className="pt-5 text-[1.45rem] font-semibold text-[#111] sm:pt-6 sm:text-[1.65rem]">
-        Store
-      </span>
+    <Link href="/" className="inline-flex items-center" aria-label="Theni Store home">
+      <Image
+        src="/images/logo.png"
+        alt="Theni Store"
+        width={2458}
+        height={1745}
+        sizes="(max-width: 640px) 9rem, 12rem"
+        className="h-24 w-auto object-contain sm:h-28"
+      />
     </Link>
   );
 }

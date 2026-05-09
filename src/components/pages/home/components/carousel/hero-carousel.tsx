@@ -1,13 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { heroSlides } from "./carousel-data";
 
 const AUTOPLAY_DELAY = 5000;
+const SWIPE_THRESHOLD = 50;
 
 export function HeroCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchCurrentXRef = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -17,9 +20,54 @@ export function HeroCarousel() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const showNextSlide = () => {
+    setActiveIndex((current) => (current + 1) % heroSlides.length);
+  };
+
+  const showPreviousSlide = () => {
+    setActiveIndex((current) => (current - 1 + heroSlides.length) % heroSlides.length);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    touchStartXRef.current = event.touches[0]?.clientX ?? null;
+    touchCurrentXRef.current = touchStartXRef.current;
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLElement>) => {
+    touchCurrentXRef.current = event.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = () => {
+    if (
+      touchStartXRef.current === null ||
+      touchCurrentXRef.current === null
+    ) {
+      return;
+    }
+
+    const swipeDistance = touchStartXRef.current - touchCurrentXRef.current;
+
+    if (Math.abs(swipeDistance) >= SWIPE_THRESHOLD) {
+      if (swipeDistance > 0) {
+        showNextSlide();
+      } else {
+        showPreviousSlide();
+      }
+    }
+
+    touchStartXRef.current = null;
+    touchCurrentXRef.current = null;
+  };
+
   return (
     <section className="w-full">
-      <div className="relative overflow-hidden bg-[#201712]">
+      <div
+        className="relative overflow-hidden bg-[#201712]"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
         {heroSlides.map((slide, index) => {
           const isActive = index === activeIndex;
 
