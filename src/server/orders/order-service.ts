@@ -4,7 +4,11 @@ import { randomUUID } from "crypto";
 import { calculateOfferDiscount, validateOffer } from "../offers/offer-service";
 import { prisma } from "../db/prisma";
 import { apiErrors } from "../http/api-error";
-import { upsertUser, type UserPayload } from "../users/user-service";
+import {
+  getUserByAuthId,
+  upsertUser,
+  type UserPayload,
+} from "../users/user-service";
 
 export type CreateOrderPayload = {
   deliveryFee?: unknown;
@@ -153,14 +157,26 @@ function toOrderDto(order: {
   };
 }
 
-export async function createOrder(payload: CreateOrderPayload): Promise<OrderDto> {
-  if (!isRecord(payload) || !isRecord(payload.user)) {
+export async function createOrder(
+  payload: CreateOrderPayload,
+  authenticatedAuthId?: string,
+): Promise<OrderDto> {
+  if (!isRecord(payload)) {
     throw apiErrors.validation("Order details are invalid.", {
-      user: "A logged-in user is required to place an order.",
+      form: "Request body must be an object.",
     });
   }
 
-  const user = await upsertUser(payload.user);
+  const user = authenticatedAuthId
+    ? await getUserByAuthId(authenticatedAuthId)
+    : isRecord(payload.user)
+      ? await upsertUser(payload.user)
+      : null;
+
+  if (!user) {
+    throw apiErrors.unauthorized("Please sign in before checkout.");
+  }
+
   const requestedItems = normalizeOrderItems(payload.items);
   const products = await prisma.product.findMany({
     where: {

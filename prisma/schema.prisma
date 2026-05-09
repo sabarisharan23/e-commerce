@@ -81,6 +81,7 @@ model User {
   id                      String   @id @default(cuid())
   authId                  String   @unique
   email                   String   @unique
+  passwordHash            String?
   name                    String
   phone                   String?
   membership              String   @default("Standard Member")

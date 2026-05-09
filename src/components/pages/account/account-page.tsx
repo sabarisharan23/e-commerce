@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DEMO_CREDENTIALS,
   useAuth,
@@ -11,7 +11,11 @@ import { AccountAddresses } from "./components/account-addresses";
 import { AccountDetailsGrid } from "./components/account-details-grid";
 import { AccountGuestState } from "./components/account-guest-state";
 import { AccountHeroCard } from "./components/account-hero-card";
-import { AccountOrderHistory } from "./components/account-order-history";
+import {
+  AccountOrderHistory,
+  type AccountOrderApiDto,
+  type AccountOrdersResponse,
+} from "./components/account-order-history";
 import { AccountPaymentMethods } from "./components/account-payment-methods";
 import { AccountSettingsPanel } from "./components/account-settings-panel";
 import { AccountSidebar } from "./components/account-sidebar";
@@ -22,6 +26,58 @@ export function AccountPage() {
   const router = useRouter();
   const { isReady, user, signIn, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState<AccountSection>("profile");
+  const [accountOrders, setAccountOrders] = useState<AccountOrderApiDto[]>([]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let active = true;
+
+    void (async () => {
+      await Promise.resolve();
+
+      if (!active) {
+        return;
+      }
+
+      setOrdersLoading(true);
+      setOrdersError(null);
+
+      try {
+        const response = await fetch("/api/v1/orders", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        const body = (await response.json()) as AccountOrdersResponse;
+
+        if (!response.ok || !body.success) {
+          throw new Error(body.success ? "Could not load orders." : body.error.message);
+        }
+
+        if (active) {
+          setAccountOrders(body.data);
+        }
+      } catch (error) {
+        if (active) {
+          setOrdersError(
+            error instanceof Error ? error.message : "Could not load orders.",
+          );
+        }
+      } finally {
+        if (active) {
+          setOrdersLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (!isReady) {
     return (
@@ -48,8 +104,11 @@ export function AccountPage() {
     return (
       <div className="w-full bg-[#f7f9fc]">
         <AccountGuestState
-          onDemoLogin={() => {
-            const result = signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password);
+          onDemoLogin={async () => {
+            const result = await signIn(
+              DEMO_CREDENTIALS.email,
+              DEMO_CREDENTIALS.password,
+            );
 
             if (result.success) {
               router.refresh();
@@ -79,12 +138,16 @@ export function AccountPage() {
           {activeSection === "profile" ? (
             <div className="space-y-7">
               <AccountHeroCard user={user} />
-              <AccountStatsGrid />
-              <AccountActivityPanel />
+              <AccountStatsGrid orders={accountOrders} />
+              <AccountActivityPanel orders={accountOrders} />
               <AccountDetailsGrid user={user} />
             </div>
           ) : activeSection === "orders" ? (
-            <AccountOrderHistory />
+            <AccountOrderHistory
+              error={ordersError}
+              isLoading={ordersLoading}
+              orders={accountOrders}
+            />
           ) : activeSection === "addresses" ? (
             <AccountAddresses />
           ) : activeSection === "payments" ? (

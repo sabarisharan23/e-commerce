@@ -3,8 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
-import { getUserOrder } from "./users-data";
+import { getUserOrder, getUserProfile } from "./users-data";
+
+type ProfileResponse =
+  | { data: ReturnType<typeof getUserProfile>; success: true }
+  | { error: { message: string }; success: false };
 
 function BackIcon() {
   return (
@@ -67,7 +72,46 @@ function timelineDot(state: "current" | "completed" | "upcoming") {
 
 export function UserOrderDetailPage() {
   const params = useParams<{ userId: string; orderId: string }>();
-  const { profile, order } = getUserOrder(params.userId, params.orderId);
+  const fallbackDetail = getUserOrder(params.userId, params.orderId);
+  const [dynamicDetail, setDynamicDetail] = useState<ReturnType<
+    typeof getUserOrder
+  > | null>(null);
+  const detail =
+    dynamicDetail?.profile.slug === params.userId &&
+    dynamicDetail.order.id === params.orderId
+      ? dynamicDetail
+      : fallbackDetail;
+  const { profile, order } = detail;
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(`/api/v1/users/${encodeURIComponent(params.userId)}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as ProfileResponse;
+
+        if (!active || !response.ok || !body.success) {
+          return;
+        }
+
+        const dynamicOrder =
+          body.data.orders.find((entry) => entry.id === params.orderId) ??
+          body.data.orders[0];
+
+        if (dynamicOrder) {
+          setDynamicDetail({ order: dynamicOrder, profile: body.data });
+        }
+      })
+      .catch(() => {
+        // Keep the static order detail if the database is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [params.orderId, params.userId]);
 
   return (
     <DashboardShell mobileTitle="Order Detail">

@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import { getUserProfile } from "./users-data";
+
+type ProfileResponse =
+  | { data: ReturnType<typeof getUserProfile>; success: true }
+  | { error: { message: string }; success: false };
 
 function PinIcon() {
   return (
@@ -113,7 +118,35 @@ function activityTone(tone: "green" | "amber" | "blue") {
 
 export function UserProfilePage() {
   const params = useParams<{ userId: string }>();
-  const profile = getUserProfile(params.userId);
+  const fallbackProfile = getUserProfile(params.userId);
+  const [dynamicProfile, setDynamicProfile] = useState<ReturnType<
+    typeof getUserProfile
+  > | null>(null);
+  const profile =
+    dynamicProfile?.slug === params.userId ? dynamicProfile : fallbackProfile;
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(`/api/v1/users/${encodeURIComponent(params.userId)}`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as ProfileResponse;
+
+        if (active && response.ok && body.success) {
+          setDynamicProfile(body.data);
+        }
+      })
+      .catch(() => {
+        // Keep the static dashboard profile if the database is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [params.userId]);
+
   const peakBar =
     profile.spendingTrend.reduce((current, item) => (item.value > current.value ? item : current), profile.spendingTrend[0]);
 

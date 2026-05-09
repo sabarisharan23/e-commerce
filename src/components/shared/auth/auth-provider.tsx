@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -26,13 +27,19 @@ type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isReady: boolean;
-  signIn: (email: string, password: string) => { success: boolean; message?: string };
-  signUp: (values: { name: string; email: string; password: string }) => {
-    success: boolean;
-    message?: string;
-  };
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (values: { name: string; email: string; password: string }) => Promise<AuthResult>;
   signOut: () => void;
 };
+
+type AuthResult = {
+  success: boolean;
+  message?: string;
+};
+
+type AuthApiResponse =
+  | { data: AuthUser; success: true }
+  | { error: { message: string }; success: false };
 
 const AUTH_STORAGE_KEY = "theni-store-auth";
 const AUTH_CHANGE_EVENT = "theni-store-auth-change";
@@ -58,23 +65,10 @@ export const DEMO_CREDENTIALS = {
   password: "demo123",
 };
 
-const DEMO_LOGIN_ALIASES = [DEMO_ACCOUNT.email, "demo@theni.store"];
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 let cachedAuthRaw = "";
 let cachedAuthSnapshot: AuthUser | null = null;
-
-function createInitials(name: string) {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-
-  return initials || "TS";
-}
 
 function readAuth() {
   if (typeof window === "undefined") {
@@ -135,83 +129,114 @@ function writeAuth(user: AuthUser | null) {
   window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
 }
 
-function createSignedUpUser(name: string, email: string): AuthUser {
-  const formattedMemberSince = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    year: "numeric",
-  }).format(new Date());
+async function readAuthResponse(response: Response) {
+  const body = (await response.json()) as AuthApiResponse;
 
-  return {
-    ...DEMO_ACCOUNT,
-    id: `member-${Date.now()}`,
-    name,
-    email,
-    memberSince: formattedMemberSince,
-    avatarInitials: createInitials(name),
-  };
-}
-
-function syncUserToDatabase(user: AuthUser | null) {
-  if (!user) {
-    return;
+  if (!response.ok || !body.success) {
+    return {
+      success: false,
+      message: body.success
+        ? "Unable to authenticate. Please try again."
+        : body.error.message,
+    };
   }
 
-  void fetch("/api/v1/users/upsert", {
-    body: JSON.stringify({
-      addressLabel: user.addressLabel,
-      addressLines: user.addressLines,
-      authId: user.id,
-      avatarInitials: user.avatarInitials,
-      communicationPreference: user.communicationPreference,
-      email: user.email,
-      membership: user.membership,
-      name: user.name,
-      phone: user.phone,
-    }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  }).catch(() => {
-    // Login should not fail just because persistence is temporarily unavailable.
-  });
+  writeAuth(body.data);
+  return { success: true };
+}
+
+async function submitAuth(
+  endpoint: "/api/v1/auth/signin" | "/api/v1/auth/signup",
+  body: Record<string, string>,
+): Promise<AuthResult> {
+  try {
+    const response = await fetch(endpoint, {
+      body: JSON.stringify(body),
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    return readAuthResponse(response);
+  } catch {
+    return {
+      success: false,
+      message: "Unable to reach the server. Please try again.",
+    };
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const user = useSyncExternalStore(subscribe, readAuth, () => null);
-  const isReady = useSyncExternalStore(
+  const isHydrated = useSyncExternalStore(
     subscribeToHydration,
     () => true,
     () => false,
   );
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
-    syncUserToDatabase(user);
-  }, [user]);
+    let active = true;
+
+    fetch("/api/v1/auth/session", {
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as AuthApiResponse;
+
+        if (!active) {
+          return;
+        }
+
+        if (response.ok && body.success) {
+          writeAuth(body.data);
+        } else {
+          writeAuth(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          writeAuth(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setSessionChecked(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isReady = isHydrated && sessionChecked;
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isAuthenticated: Boolean(user),
       isReady,
-      signIn: (email, password) => {
+      signIn: async (email, password) => {
         const normalizedEmail = email.trim().toLowerCase();
         const normalizedPassword = password.trim();
 
-        const isValidEmail = DEMO_LOGIN_ALIASES.includes(normalizedEmail);
-        const isValidPassword = normalizedPassword === DEMO_CREDENTIALS.password;
-
-        if (!isValidEmail || !isValidPassword) {
+        if (!normalizedEmail || normalizedPassword.length < 6) {
           return {
             success: false,
-            message: "Use the demo account details shown in the popup to sign in.",
+            message: "Enter a valid email and a password with at least 6 characters.",
           };
         }
 
-        writeAuth(DEMO_ACCOUNT);
-        return { success: true };
+        return submitAuth("/api/v1/auth/signin", {
+          email: normalizedEmail,
+          password: normalizedPassword,
+        });
       },
-      signUp: ({ name, email, password }) => {
+      signUp: async ({ name, email, password }) => {
         const trimmedName = name.trim();
         const normalizedEmail = email.trim().toLowerCase();
         const normalizedPassword = password.trim();
@@ -223,11 +248,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
 
-        writeAuth(createSignedUpUser(trimmedName, normalizedEmail));
-        return { success: true };
+        return submitAuth("/api/v1/auth/signup", {
+          email: normalizedEmail,
+          name: trimmedName,
+          password: normalizedPassword,
+        });
       },
       signOut: () => {
         writeAuth(null);
+        void fetch("/api/v1/auth/signout", {
+          credentials: "same-origin",
+          method: "POST",
+        });
       },
     }),
     [isReady, user],

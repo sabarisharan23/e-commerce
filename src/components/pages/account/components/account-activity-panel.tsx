@@ -1,6 +1,7 @@
 "use client";
 
 import { accountActivity, type AccountActivity } from "../account-data";
+import type { AccountOrderApiDto } from "./account-order-history";
 
 function ActivityIcon({ icon }: { icon: AccountActivity["icon"] }) {
   const wrapperClassName =
@@ -60,7 +61,39 @@ function ActivityIcon({ icon }: { icon: AccountActivity["icon"] }) {
   );
 }
 
-export function AccountActivityPanel() {
+function formatActivityTime(date: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+function getOrderActivity(orders: AccountOrderApiDto[]): AccountActivity[] {
+  if (orders.length === 0) {
+    return [];
+  }
+
+  return orders.slice(0, 3).map((order) => {
+    const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+    return {
+      description: `${itemCount} item${itemCount === 1 ? "" : "s"} saved to your order history.`,
+      icon: order.status === "PLACED" ? "delivery" : "payment",
+      id: order.orderNumber,
+      timestamp: formatActivityTime(order.createdAt),
+      title: `Order #${order.orderNumber} ${order.status.toLowerCase()}`,
+    };
+  });
+}
+
+export function AccountActivityPanel({
+  orders,
+}: {
+  orders?: AccountOrderApiDto[];
+}) {
+  const activities = orders ? getOrderActivity(orders) : accountActivity;
+
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
       <div className="flex items-center justify-between gap-4 border-b border-[#edf1f6] px-6 py-5 sm:px-7">
@@ -76,11 +109,17 @@ export function AccountActivityPanel() {
       </div>
 
       <div>
-        {accountActivity.map((activity, index) => (
+        {activities.length === 0 ? (
+          <div className="px-6 py-10 text-base font-semibold text-[#71829a] sm:px-7">
+            No recent account activity yet.
+          </div>
+        ) : null}
+
+        {activities.map((activity, index) => (
           <article
             key={activity.id}
             className={`flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-7 ${
-              index < accountActivity.length - 1 ? "border-b border-[#edf1f6]" : ""
+              index < activities.length - 1 ? "border-b border-[#edf1f6]" : ""
             }`}
           >
             <div className="flex gap-4">

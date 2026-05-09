@@ -101,6 +101,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const [password, setPassword] = useState(DEMO_CREDENTIALS.password);
   const [confirmPassword, setConfirmPassword] = useState(DEMO_CREDENTIALS.password);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -128,13 +129,56 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   const isLogin = mode === "login";
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setErrorMessage("");
 
-    if (isLogin) {
-      const result = signIn(email, password);
+    if (!isLogin && password !== confirmPassword) {
+      setErrorMessage("Your passwords need to match before we can create the account.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (isLogin) {
+        const result = await signIn(email, password);
+
+        if (!result.success) {
+          setErrorMessage(result.message ?? "Unable to sign in.");
+          return;
+        }
+
+        onClose();
+        router.push("/account");
+        return;
+      }
+
+      const result = await signUp({
+        name: fullName,
+        email,
+        password,
+      });
+
+      if (!result.success) {
+        setErrorMessage(result.message ?? "Unable to create account.");
+        return;
+      }
+
+      onClose();
+      router.push("/account");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDemoProviderLogin = async () => {
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password);
 
       if (!result.success) {
         setErrorMessage(result.message ?? "Unable to sign in.");
@@ -143,27 +187,9 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
       onClose();
       router.push("/account");
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (password !== confirmPassword) {
-      setErrorMessage("Your passwords need to match before we can create the account.");
-      return;
-    }
-
-    const result = signUp({
-      name: fullName,
-      email,
-      password,
-    });
-
-    if (!result.success) {
-      setErrorMessage(result.message ?? "Unable to create account.");
-      return;
-    }
-
-    onClose();
-    router.push("/account");
   };
 
   return (
@@ -236,6 +262,9 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               }`}
               onClick={() => {
                 setMode("signup");
+                setEmail("");
+                setPassword("");
+                setConfirmPassword("");
                 setPasswordVisible(false);
                 setErrorMessage("");
               }}
@@ -383,9 +412,16 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
             <button
               type="submit"
-              className="h-11 w-full rounded-xl bg-[#477640] text-sm font-bold text-white transition-colors hover:bg-[#3a6335] sm:text-base"
+              disabled={isSubmitting}
+              className="h-11 w-full rounded-xl bg-[#477640] text-sm font-bold text-white transition-colors hover:bg-[#3a6335] disabled:cursor-not-allowed disabled:opacity-70 sm:text-base"
             >
-              {isLogin ? "Sign in to Store" : "Create Account"}
+              {isSubmitting
+                ? isLogin
+                  ? "Signing in..."
+                  : "Creating account..."
+                : isLogin
+                  ? "Sign in to Store"
+                  : "Create Account"}
             </button>
           </form>
 
@@ -400,36 +436,18 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => {
-                const result = signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password);
-
-                if (!result.success) {
-                  setErrorMessage(result.message ?? "Unable to sign in.");
-                  return;
-                }
-
-                onClose();
-                router.push("/account");
-              }}
-              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] sm:h-11"
+              disabled={isSubmitting}
+              onClick={handleDemoProviderLogin}
+              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70 sm:h-11"
             >
               <GoogleIcon />
               <span>Google</span>
             </button>
             <button
               type="button"
-              onClick={() => {
-                const result = signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password);
-
-                if (!result.success) {
-                  setErrorMessage(result.message ?? "Unable to sign in.");
-                  return;
-                }
-
-                onClose();
-                router.push("/account");
-              }}
-              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] sm:h-11"
+              disabled={isSubmitting}
+              onClick={handleDemoProviderLogin}
+              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70 sm:h-11"
             >
               <FacebookIcon />
               <span>Facebook</span>
@@ -451,6 +469,10 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   setEmail(DEMO_CREDENTIALS.email);
                   setPassword(DEMO_CREDENTIALS.password);
                   setConfirmPassword(DEMO_CREDENTIALS.password);
+                } else {
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
                 }
               }}
             >

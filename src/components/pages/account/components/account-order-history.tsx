@@ -8,7 +8,7 @@ type OrderFilter = "all" | "in-progress" | "completed";
 
 const ROWS_PER_PAGE = 4;
 
-type OrderApiDto = {
+export type AccountOrderApiDto = {
   createdAt: string;
   items: Array<{
     productName: string;
@@ -19,9 +19,15 @@ type OrderApiDto = {
   total: number;
 };
 
-type OrdersResponse =
-  | { data: OrderApiDto[]; success: true }
+export type AccountOrdersResponse =
+  | { data: AccountOrderApiDto[]; success: true }
   | { error: { message: string }; success: false };
+
+type AccountOrderHistoryProps = {
+  error?: string | null;
+  isLoading?: boolean;
+  orders?: AccountOrderApiDto[];
+};
 
 const filterOptions: Array<{ id: OrderFilter; label: string }> = [
   { id: "all", label: "All Orders" },
@@ -101,7 +107,7 @@ function normalizeStatus(status: string): OrderStatus {
   return "delivered";
 }
 
-function toOrderHistoryRecord(order: OrderApiDto): OrderHistoryRecord {
+function toOrderHistoryRecord(order: AccountOrderApiDto): OrderHistoryRecord {
   const firstItem = order.items[0];
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -224,59 +230,78 @@ function OrderHistoryTable({
   );
 }
 
-export function AccountOrderHistory() {
+export function AccountOrderHistory({
+  error: providedError,
+  isLoading: providedIsLoading,
+  orders: providedOrders,
+}: AccountOrderHistoryProps = {}) {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [orders, setOrders] = useState<OrderHistoryRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fetchedOrders, setFetchedOrders] = useState<OrderHistoryRecord[]>([]);
+  const [fetchedIsLoading, setFetchedIsLoading] = useState(false);
+  const [fetchedError, setFetchedError] = useState<string | null>(null);
+  const providedRecords = useMemo(
+    () => providedOrders?.map(toOrderHistoryRecord),
+    [providedOrders],
+  );
+  const orders = providedRecords ?? fetchedOrders;
+  const isLoading = providedRecords ? Boolean(providedIsLoading) : fetchedIsLoading;
+  const error = providedRecords ? providedError ?? null : fetchedError;
 
   useEffect(() => {
+    if (providedOrders) {
+      return;
+    }
+
     if (!user) {
-      setOrders([]);
       return;
     }
 
     let active = true;
 
-    setIsLoading(true);
-    setError(null);
+    void (async () => {
+      await Promise.resolve();
 
-    fetch(`/api/v1/orders?userAuthId=${encodeURIComponent(user.id)}`)
-      .then(async (response) => {
-        const body = (await response.json()) as OrdersResponse;
+      if (!active) {
+        return;
+      }
+
+      setFetchedIsLoading(true);
+      setFetchedError(null);
+
+      try {
+        const response = await fetch(
+          `/api/v1/orders?userAuthId=${encodeURIComponent(user.id)}`,
+        );
+        const body = (await response.json()) as AccountOrdersResponse;
 
         if (!response.ok || !body.success) {
           throw new Error(body.success ? "Could not load orders." : body.error.message);
         }
 
-        return body.data.map(toOrderHistoryRecord);
-      })
-      .then((records) => {
         if (active) {
-          setOrders(records);
+          setFetchedOrders(body.data.map(toOrderHistoryRecord));
         }
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (active) {
-          setError(
+          setFetchedError(
             loadError instanceof Error
               ? loadError.message
               : "Could not load orders.",
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) {
-          setIsLoading(false);
+          setFetchedIsLoading(false);
         }
-      });
+      }
+    })();
 
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [providedError, providedIsLoading, providedOrders, user]);
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "all") {

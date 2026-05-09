@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import {
   userGrowthReport,
@@ -16,6 +16,10 @@ import {
 } from "./users-data";
 
 type ViewMode = "list" | "grid";
+
+type UsersResponse =
+  | { data: UserListRow[]; success: true }
+  | { error: { message: string }; success: false };
 
 function GridViewIcon() {
   return (
@@ -307,7 +311,9 @@ function UserListTable({ rows }: { rows: UserListRow[] }) {
       </div>
 
       <div className="mt-6 flex flex-col gap-4 border-t border-[#edf1f6] pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-[#64748b]">Showing 1-10 of 1,284 users</p>
+        <p className="text-sm font-medium text-[#64748b]">
+          Showing 1-{Math.min(rows.length, 10)} of {rows.length} users
+        </p>
         <div className="flex items-center gap-2">
           <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dbe3ee] bg-white text-[#94a3b8]">&lt;</button>
           <button type="button" className="inline-flex h-10 min-w-10 items-center justify-center rounded-xl border border-[#477640] bg-[#477640] px-3 text-sm font-semibold text-white">1</button>
@@ -387,10 +393,31 @@ export function UserNetworkPage() {
   const [role, setRole] = useState("All Roles");
   const [status, setStatus] = useState("All Status");
   const [query, setQuery] = useState("");
+  const [rows, setRows] = useState<UserListRow[]>(userNetworkRows);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/v1/users", { cache: "no-store" })
+      .then(async (response) => {
+        const body = (await response.json()) as UsersResponse;
+
+        if (active && response.ok && body.success) {
+          setRows(body.data);
+        }
+      })
+      .catch(() => {
+        // Keep the design-time dashboard rows if the database is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredRows = useMemo(
-    () => userNetworkRows.filter((row) => matchesUserFilters(row, query, role, status)),
-    [query, role, status],
+    () => rows.filter((row) => matchesUserFilters(row, query, role, status)),
+    [query, role, rows, status],
   );
 
   return (
