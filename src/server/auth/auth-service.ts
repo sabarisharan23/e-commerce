@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import type { Prisma, User } from "@prisma/client";
 
 import { prisma } from "../db/prisma";
 import { apiErrors } from "../http/api-error";
@@ -34,21 +35,20 @@ export type SignUpPayload = {
   password?: unknown;
 };
 
-type UserRecord = {
-  id: string;
-  authId: string;
-  email: string;
-  passwordHash: string | null;
-  name: string;
-  phone: string | null;
-  membership: string;
-  communicationPreference: string | null;
+type UserRecord = User;
+
+type UserMutationRecord = {
   addressLabel: string | null;
-  addressLines: unknown;
+  addressLines: Prisma.InputJsonValue;
+  authId: string;
   avatarInitials: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  communicationPreference: string | null;
+  email: string;
   lastLoginAt: Date | null;
+  membership: string;
+  name: string;
+  passwordHash: string | null;
+  phone: string | null;
 };
 
 const demoAccount = {
@@ -111,6 +111,7 @@ function toAuthUserDto(user: UserRecord): AuthUserDto {
 function fromDevAuthUser(user: DevAuthUserRecord): UserRecord {
   return {
     ...user,
+    addressLines: readAddressLines(user.addressLines),
     createdAt: new Date(user.createdAt),
     lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt) : null,
     updatedAt: new Date(user.updatedAt),
@@ -184,7 +185,7 @@ async function findUserByAuthId(authId: string) {
   );
 }
 
-async function createUser(data: Omit<UserRecord, "id" | "createdAt" | "updatedAt">) {
+async function createUser(data: UserMutationRecord) {
   return withAuthStoreFallback(
     async () =>
       prisma.user.create({
@@ -195,6 +196,7 @@ async function createUser(data: Omit<UserRecord, "id" | "createdAt" | "updatedAt
       const now = new Date();
       const user: UserRecord = {
         ...data,
+        addressLines: readAddressLines(data.addressLines),
         createdAt: now,
         id: `dev-user-${randomUUID()}`,
         updatedAt: now,
@@ -208,7 +210,7 @@ async function createUser(data: Omit<UserRecord, "id" | "createdAt" | "updatedAt
   );
 }
 
-async function updateUser(id: string, data: Partial<UserRecord>) {
+async function updateUser(id: string, data: Partial<UserMutationRecord>) {
   return withAuthStoreFallback(
     async () =>
       prisma.user.update({
@@ -229,6 +231,10 @@ async function updateUser(id: string, data: Partial<UserRecord>) {
       const nextUser: UserRecord = {
         ...current,
         ...data,
+        addressLines:
+          data.addressLines === undefined
+            ? current.addressLines
+            : readAddressLines(data.addressLines),
         updatedAt: new Date(),
       };
 
