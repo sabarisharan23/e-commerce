@@ -20,7 +20,9 @@ type WrappedApiRoute<TParams extends RouteParams = RouteParams> = (
   context?: ApiRouteContext<TParams>,
 ) => Promise<Response>;
 
-const internalServerErrorMessage = "Something went wrong while processing the request.";
+const internalServerErrorMessage =
+  "Something went wrong while processing the request.";
+
 
 export function withApiHandler<TParams extends RouteParams = RouteParams>(
   handler: ApiRouteHandler<TParams>,
@@ -45,7 +47,14 @@ export function withApiHandler<TParams extends RouteParams = RouteParams>(
       return apiFailure(
         {
           code: "INTERNAL_SERVER_ERROR",
-          message: internalServerErrorMessage,
+          details:
+            process.env.NODE_ENV === "production" || !(error instanceof Error)
+              ? undefined
+              : { stack: error.stack },
+          message:
+            process.env.NODE_ENV === "production" || !(error instanceof Error)
+              ? internalServerErrorMessage
+              : error.message,
         },
         { status: 500 },
       );

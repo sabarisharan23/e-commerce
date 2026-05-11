@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { calculateOfferDiscount, validateOffer } from "../offers/offer-service";
 import { prisma } from "../db/prisma";
 import { apiErrors } from "../http/api-error";
+import { serverLogger } from "../observability/logger";
 import {
   getUserByAuthId,
   upsertUser,
@@ -40,6 +41,23 @@ export type OrderItemDto = {
   productSlug: string;
   quantity: number;
   unitPrice: number;
+};
+
+export type PublicOrderTrackingDto = {
+  itemSummary: string;
+  orderNumber: string;
+  placedOn: string;
+  status: string;
+  statusDetail: string;
+  statusTone: "green" | "amber" | "red";
+  trackingCarrier: string;
+  trackingCode: string;
+  trackingSteps: Array<{
+    detail: string;
+    id: string;
+    state: "completed" | "current" | "upcoming";
+    title: string;
+  }>;
 };
 
 export type DashboardOrderMetric = {
@@ -114,6 +132,20 @@ export type DashboardOrderDetail = {
   }>;
 };
 
+type DashboardOrderWithRelations = {
+  createdAt: Date;
+  orderNumber: string;
+  status: string;
+  total: Prisma.Decimal;
+  user: {
+    avatarInitials: string | null;
+    name: string;
+  };
+  items: Array<{
+    productName: string;
+  }>;
+};
+
 const freeDeliveryThreshold = 2750;
 const standardDeliveryFee = 50;
 const taxRate = 0.18;
@@ -124,6 +156,138 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function optionalString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function formatTrackingDate(value: Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(value);
+}
+
+function getPublicTrackingStatus(status: string) {
+  if (status === "CANCELLED") {
+    return {
+      detail: "This order was cancelled before shipment was created.",
+      label: "Cancelled",
+      tone: "red" as const,
+    };
+  }
+
+  if (status === "COMPLETED" || status === "DELIVERED") {
+    return {
+      detail: "Your order has been delivered successfully.",
+      label: "Delivered",
+      tone: "green" as const,
+    };
+  }
+
+  if (status === "SHIPPED") {
+    return {
+      detail: "Your package is on the way and moving through delivery.",
+      label: "Shipped",
+      tone: "amber" as const,
+    };
+  }
+
+  return {
+    detail: "Your order is confirmed and currently being prepared.",
+    label: "Processing",
+    tone: "amber" as const,
+  };
+}
+
+function getPublicTrackingSteps(status: string): PublicOrderTrackingDto["trackingSteps"] {
+  if (status === "CANCELLED") {
+    return [
+      {
+        detail: "Order was cancelled before fulfillment began.",
+        id: "cancelled",
+        state: "current",
+        title: "Cancelled",
+      },
+      {
+        detail: "Order was received by the store.",
+        id: "received",
+        state: "completed",
+        title: "Order Received",
+      },
+      {
+        detail: "Shipment was not created.",
+        id: "shipment",
+        state: "upcoming",
+        title: "Shipment",
+      },
+    ];
+  }
+
+  if (status === "COMPLETED" || status === "DELIVERED") {
+    return [
+      {
+        detail: "Package has been delivered to the customer address.",
+        id: "delivered",
+        state: "current",
+        title: "Delivered",
+      },
+      {
+        detail: "Package was out for final delivery.",
+        id: "out-for-delivery",
+        state: "completed",
+        title: "Out for Delivery",
+      },
+      {
+        detail: "Order was packed and dispatched from the store.",
+        id: "packed",
+        state: "completed",
+        title: "Packed",
+      },
+    ];
+  }
+
+  if (status === "SHIPPED") {
+    return [
+      {
+        detail: "Shipment is currently moving through delivery.",
+        id: "in-transit",
+        state: "current",
+        title: "In Transit",
+      },
+      {
+        detail: "Order was packed and handed over for shipment.",
+        id: "packed",
+        state: "completed",
+        title: "Packed",
+      },
+      {
+        detail: "Order was confirmed successfully.",
+        id: "confirmed",
+        state: "completed",
+        title: "Order Confirmed",
+      },
+    ];
+  }
+
+  return [
+    {
+      detail: "Order is being prepared by the store team.",
+      id: "processing",
+      state: "current",
+      title: "Processing",
+    },
+    {
+      detail: "Payment and order details have been confirmed.",
+      id: "confirmed",
+      state: "completed",
+      title: "Confirmed",
+    },
+    {
+      detail: "Shipment will be created after packing.",
+      id: "shipment",
+      state: "upcoming",
+      title: "Shipment",
+    },
+  ];
 }
 
 function normalizeOrderItems(value: unknown) {
@@ -261,6 +425,100 @@ function getDashboardStatusLabel(status: string) {
   }
 
   return "Processing";
+}
+
+function shouldUseOrderFallback(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    /EACCES|ECONNREFUSED|ENOTFOUND|Can't reach database server|connect/i.test(message) ||
+    /Cannot read properties of undefined \(reading '(findMany|findFirst|create|update)'\)/i.test(
+      message,
+    )
+  );
+}
+
+function buildDashboardOrderOverview(orders: DashboardOrderWithRelations[]): DashboardOrderOverview {
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
+  const activeOrders = orders.filter((order) =>
+    ["PLACED", "PROCESSING", "SHIPPED"].includes(order.status),
+  ).length;
+  const completedOrders = orders.filter((order) =>
+    ["COMPLETED", "DELIVERED"].includes(order.status),
+  ).length;
+  const cancelledOrders = orders.filter((order) => order.status === "CANCELLED").length;
+  const totalOrders = Math.max(orders.length, 1);
+  const statusBreakdown: DashboardOrderStatusBreakdown[] = [
+    {
+      color: "#477640",
+      label: "Delivered",
+      percentage: Math.round((completedOrders / totalOrders) * 100),
+    },
+    {
+      color: "#f5a000",
+      label: "In Transit",
+      percentage: Math.round((activeOrders / totalOrders) * 100),
+    },
+    {
+      color: "#d53b3b",
+      label: "Cancelled",
+      percentage: Math.round((cancelledOrders / totalOrders) * 100),
+    },
+  ];
+  const recentRows = orders.slice(0, 8).map((order) => ({
+    amount: formatDashboardMoney(Number(order.total)),
+    customer: order.user.name,
+    id: `#${order.orderNumber}`,
+    initials: order.user.avatarInitials ?? createInitials(order.user.name),
+    product: order.items[0]?.productName ?? "Order items",
+    status: normalizeDashboardOrderStatus(order.status),
+  }));
+  const managementRows = orders.map((order) => ({
+    amount: formatDashboardMoney(Number(order.total)),
+    customer: order.user.name,
+    id: `#${order.orderNumber}`,
+    initials: order.user.avatarInitials ?? createInitials(order.user.name),
+    orderDate: formatDashboardDate(order.createdAt),
+    status: normalizeManagementOrderStatus(order.status),
+  }));
+
+  return {
+    managementRows,
+    metrics: [
+      {
+        helper: `${formatDashboardMoney(totalRevenue)} revenue`,
+        id: "total-orders",
+        label: "Total Orders",
+        tone: "green",
+        value: orders.length.toLocaleString("en-IN"),
+      },
+      {
+        helper: "Needs fulfillment",
+        id: "pending",
+        label: "Pending",
+        tone: activeOrders > 0 ? "amber" : "neutral",
+        value: activeOrders.toLocaleString("en-IN"),
+      },
+      {
+        helper: `${Math.round((completedOrders / totalOrders) * 100)}% success rate`,
+        id: "completed",
+        label: "Completed",
+        tone: "green",
+        value: completedOrders.toLocaleString("en-IN"),
+      },
+      {
+        helper: cancelledOrders > 0 ? "Review needed" : "No cancellations",
+        id: "returns",
+        label: "Cancelled",
+        tone: cancelledOrders > 0 ? "red" : "green",
+        value: cancelledOrders.toLocaleString("en-IN"),
+      },
+    ],
+    recentRows,
+    statusBreakdown,
+    totalOrdersLabel:
+      orders.length >= 1000 ? `${(orders.length / 1000).toFixed(1)}k` : String(orders.length),
+  };
 }
 
 function buildDashboardTimeline(status: string, createdAt: Date): DashboardOrderDetail["timeline"] {
@@ -530,94 +788,30 @@ export async function listUserOrders(userAuthId: string): Promise<OrderDto[]> {
 }
 
 export async function getDashboardOrderOverview(): Promise<DashboardOrderOverview> {
-  const orders = await prisma.order.findMany({
-    include: {
-      items: true,
-      user: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total), 0);
-  const activeOrders = orders.filter((order) =>
-    ["PLACED", "PROCESSING", "SHIPPED"].includes(order.status),
-  ).length;
-  const completedOrders = orders.filter((order) =>
-    ["COMPLETED", "DELIVERED"].includes(order.status),
-  ).length;
-  const cancelledOrders = orders.filter((order) => order.status === "CANCELLED").length;
-  const totalOrders = Math.max(orders.length, 1);
-  const statusBreakdown: DashboardOrderStatusBreakdown[] = [
-    {
-      color: "#477640",
-      label: "Delivered",
-      percentage: Math.round((completedOrders / totalOrders) * 100),
-    },
-    {
-      color: "#f5a000",
-      label: "In Transit",
-      percentage: Math.round((activeOrders / totalOrders) * 100),
-    },
-    {
-      color: "#d53b3b",
-      label: "Cancelled",
-      percentage: Math.round((cancelledOrders / totalOrders) * 100),
-    },
-  ];
-  const recentRows = orders.slice(0, 8).map((order) => ({
-    amount: formatDashboardMoney(Number(order.total)),
-    customer: order.user.name,
-    id: `#${order.orderNumber}`,
-    initials: order.user.avatarInitials ?? createInitials(order.user.name),
-    product: order.items[0]?.productName ?? "Order items",
-    status: normalizeDashboardOrderStatus(order.status),
-  }));
-  const managementRows = orders.map((order) => ({
-    amount: formatDashboardMoney(Number(order.total)),
-    customer: order.user.name,
-    id: `#${order.orderNumber}`,
-    initials: order.user.avatarInitials ?? createInitials(order.user.name),
-    orderDate: formatDashboardDate(order.createdAt),
-    status: normalizeManagementOrderStatus(order.status),
-  }));
+  try {
+    const orders = await prisma.order.findMany({
+      include: {
+        items: true,
+        user: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-  return {
-    managementRows,
-    metrics: [
-      {
-        helper: `${formatDashboardMoney(totalRevenue)} revenue`,
-        id: "total-orders",
-        label: "Total Orders",
-        tone: "green",
-        value: orders.length.toLocaleString("en-IN"),
-      },
-      {
-        helper: "Needs fulfillment",
-        id: "pending",
-        label: "Pending",
-        tone: activeOrders > 0 ? "amber" : "neutral",
-        value: activeOrders.toLocaleString("en-IN"),
-      },
-      {
-        helper: `${Math.round((completedOrders / totalOrders) * 100)}% success rate`,
-        id: "completed",
-        label: "Completed",
-        tone: "green",
-        value: completedOrders.toLocaleString("en-IN"),
-      },
-      {
-        helper: cancelledOrders > 0 ? "Review needed" : "No cancellations",
-        id: "returns",
-        label: "Cancelled",
-        tone: cancelledOrders > 0 ? "red" : "green",
-        value: cancelledOrders.toLocaleString("en-IN"),
-      },
-    ],
-    recentRows,
-    statusBreakdown,
-    totalOrdersLabel: orders.length >= 1000 ? `${(orders.length / 1000).toFixed(1)}k` : String(orders.length),
-  };
+    return buildDashboardOrderOverview(orders);
+  } catch (error) {
+    if (!shouldUseOrderFallback(error)) {
+      throw error;
+    }
+
+    serverLogger.warn(
+      "Order overview fell back to an empty dashboard because the order datasource is unavailable.",
+      { error: error instanceof Error ? error.message : String(error) },
+    );
+
+    return buildDashboardOrderOverview([]);
+  }
 }
 
 export async function getDashboardOrderDetail(
@@ -683,5 +877,47 @@ export async function getDashboardOrderDetail(
     status: getDashboardStatusLabel(order.status),
     subtotal: formatDashboardMoney(Number(order.subtotal)),
     timeline: buildDashboardTimeline(order.status, order.createdAt),
+  };
+}
+
+export async function getPublicOrderTracking(
+  orderCode: string,
+): Promise<PublicOrderTrackingDto> {
+  const normalizedOrderCode = orderCode.trim().replace(/^#/, "");
+
+  if (!normalizedOrderCode) {
+    throw apiErrors.notFound("Order was not found.");
+  }
+
+  const order = await prisma.order.findFirst({
+    include: {
+      items: {
+        select: {
+          quantity: true,
+        },
+      },
+    },
+    where: {
+      orderNumber: normalizedOrderCode,
+    },
+  });
+
+  if (!order) {
+    throw apiErrors.notFound("Order was not found.", { orderCode });
+  }
+
+  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const statusInfo = getPublicTrackingStatus(order.status);
+
+  return {
+    itemSummary: `${itemCount} item${itemCount === 1 ? "" : "s"}`,
+    orderNumber: order.orderNumber,
+    placedOn: formatTrackingDate(order.createdAt),
+    status: statusInfo.label,
+    statusDetail: statusInfo.detail,
+    statusTone: statusInfo.tone,
+    trackingCarrier: "Standard delivery",
+    trackingCode: order.orderNumber,
+    trackingSteps: getPublicTrackingSteps(order.status),
   };
 }

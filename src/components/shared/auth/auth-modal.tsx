@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { DEMO_CREDENTIALS, useAuth } from "./auth-provider";
@@ -483,15 +484,23 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           <footer className="mt-6 grid gap-3 border-t border-white/80 pt-5 text-[0.7rem] font-semibold text-[#97a7c0] sm:mt-auto sm:grid-cols-[1fr_auto] sm:items-center sm:text-xs">
             <p>&copy; 2026 Theni Stores. All rights reserved.</p>
             <div className="flex flex-wrap gap-5">
-              <button type="button" className="hover:text-white">
+              <Link
+                href="/info/privacy-policy"
+                onClick={onClose}
+                className="hover:text-white"
+              >
                 Privacy
-              </button>
-              <button type="button" className="hover:text-white">
+              </Link>
+              <Link
+                href="/info/terms-of-service"
+                onClick={onClose}
+                className="hover:text-white"
+              >
                 Terms
-              </button>
-              <button type="button" className="hover:text-white">
+              </Link>
+              <Link href="/info/faqs" onClick={onClose} className="hover:text-white">
                 Help
-              </button>
+              </Link>
             </div>
           </footer>
         </section>

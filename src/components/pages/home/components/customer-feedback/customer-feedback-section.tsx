@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   feedbackCategories,
   feedbackItems,
@@ -64,10 +64,14 @@ function chunkItems<T>(items: T[], size: number) {
   return chunks;
 }
 
+const SWIPE_THRESHOLD = 50;
+
 export function CustomerFeedbackSection() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [cardsPerPage, setCardsPerPage] = useState(2);
   const [activePage, setActivePage] = useState(0);
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeCurrentXRef = useRef<number | null>(null);
 
   useEffect(() => {
     const updateCardsPerPage = () => {
@@ -93,6 +97,48 @@ export function CustomerFeedbackSection() {
   );
   const currentPage = Math.min(activePage, Math.max(pages.length - 1, 0));
 
+  const showPreviousPage = () => {
+    setActivePage((page) => Math.max(page - 1, 0));
+  };
+
+  const showNextPage = () => {
+    setActivePage((page) => Math.min(page + 1, Math.max(pages.length - 1, 0)));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.clientX;
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null) {
+      return;
+    }
+
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerEnd = () => {
+    if (swipeStartXRef.current === null || swipeCurrentXRef.current === null) {
+      swipeStartXRef.current = null;
+      swipeCurrentXRef.current = null;
+      return;
+    }
+
+    const swipeDistance = swipeStartXRef.current - swipeCurrentXRef.current;
+
+    if (Math.abs(swipeDistance) >= SWIPE_THRESHOLD) {
+      if (swipeDistance > 0) {
+        showNextPage();
+      } else {
+        showPreviousPage();
+      }
+    }
+
+    swipeStartXRef.current = null;
+    swipeCurrentXRef.current = null;
+  };
+
   return (
     <section className="bg-white">
       <div className="w-full px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -103,16 +149,12 @@ export function CustomerFeedbackSection() {
           <div className="flex items-center gap-3">
             <ArrowButton
               direction="left"
-              onClick={() => setActivePage((page) => Math.max(page - 1, 0))}
+              onClick={showPreviousPage}
               disabled={currentPage === 0}
             />
             <ArrowButton
               direction="right"
-              onClick={() =>
-                setActivePage((page) =>
-                  Math.min(page + 1, Math.max(pages.length - 1, 0)),
-                )
-              }
+              onClick={showNextPage}
               disabled={currentPage === pages.length - 1}
             />
           </div>
@@ -144,7 +186,14 @@ export function CustomerFeedbackSection() {
           </div>
         </div>
 
-        <div className="mt-8 overflow-hidden">
+        <div
+          className="mt-8 overflow-hidden touch-pan-y"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onPointerLeave={handlePointerEnd}
+        >
           <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${currentPage * 100}%)` }}

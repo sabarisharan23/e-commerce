@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { accountActivity, type AccountActivity } from "../account-data";
 import type { AccountOrderApiDto } from "./account-order-history";
 
@@ -95,18 +96,20 @@ export function AccountActivityPanel({
   const activities = orders ? getOrderActivity(orders) : accountActivity;
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
-      <div className="flex items-center justify-between gap-4 border-b border-[#edf1f6] px-6 py-5 sm:px-7">
-        <h2 className="text-[2rem] font-semibold tracking-tight text-[#1a2540]">
-          Recent Activity
-        </h2>
-        <button
-          type="button"
-          className="text-base font-semibold text-[#487540] transition-colors hover:text-[#3b6235]"
-        >
-          View All
-        </button>
-      </div>
+    <>
+      <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
+        <div className="flex items-center justify-between gap-4 border-b border-[#edf1f6] px-6 py-5 sm:px-7">
+          <h2 className="text-[1.35rem] font-semibold tracking-tight text-[#1a2540]">
+            Recent Activity
+          </h2>
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="text-sm font-semibold text-[#487540] transition-colors hover:text-[#3b6235]"
+          >
+            View All
+          </button>
+        </div>
 
       <div>
         {activities.length === 0 ? (
@@ -134,12 +137,61 @@ export function AccountActivityPanel({
               </div>
             </div>
 
-            <p className="shrink-0 text-sm font-medium text-[#8794aa] sm:pl-4">
-              {activity.timestamp}
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
+              <p className="shrink-0 text-sm font-medium text-[#8794aa] sm:pl-4">
+                {activity.timestamp}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {showAll ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 py-8">
+          <button
+            type="button"
+            aria-label="Close activity history"
+            className="absolute inset-0"
+            onClick={() => setShowAll(false)}
+          />
+          <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#edf1f6] px-6 py-5">
+              <h3 className="text-xl font-semibold text-[#1a2540]">Activity History</h3>
+              <button
+                type="button"
+                onClick={() => setShowAll(false)}
+                className="text-sm font-semibold text-[#487540]"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {accountActivity.map((activity, index) => (
+                <article
+                  key={`${activity.id}-modal`}
+                  className={`flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-start sm:justify-between ${
+                    index < accountActivity.length - 1 ? "border-b border-[#edf1f6]" : ""
+                  }`}
+                >
+                  <div className="flex gap-4">
+                    <ActivityIcon icon={activity.icon} />
+                    <div className="min-w-0">
+                      <h4 className="text-base font-semibold text-[#1a2540]">
+                        {activity.title}
+                      </h4>
+                      <p className="mt-1 text-sm leading-7 text-[#617089] sm:text-base">
+                        {activity.description}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="shrink-0 text-sm font-medium text-[#8794aa] sm:pl-4">
+                    {activity.timestamp}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

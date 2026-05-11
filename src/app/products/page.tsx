@@ -7,12 +7,14 @@ import {
 type ProductsRouteProps = {
   searchParams: Promise<{
     category?: string | string[] | undefined;
+    q?: string | string[] | undefined;
   }>;
 };
 
 export default async function ProductsRoute({ searchParams }: ProductsRouteProps) {
-  const { category } = await searchParams;
+  const { category, q } = await searchParams;
   const categoryId = Array.isArray(category) ? category[0] : category;
+  const searchQuery = Array.isArray(q) ? q[0] : q;
   const [products, categoriesWithProducts] = await Promise.all([
     listStorefrontProducts(),
     listStorefrontCategoriesWithProducts(),
@@ -27,6 +29,7 @@ export default async function ProductsRoute({ searchParams }: ProductsRouteProps
     <ProductsPage
       categoriesWithProducts={categoriesWithProducts}
       initialCategoryId={initialCategoryId}
+      initialSearchQuery={searchQuery ?? ""}
       products={products}
     />
   );

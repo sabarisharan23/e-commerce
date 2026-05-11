@@ -15,7 +15,7 @@ export function ProductHealthBenefitsSection({
       <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
           {content.healthBenefits.map((benefit) => (
-            <div key={benefit.title} className="rounded-[18px] bg-[#f4c91f] px-5 py-4">
+            <div key={benefit.title} className="rounded-[18px] bg-yellow-100 px-5 py-4">
               <h3 className="text-xl font-semibold text-[#1d253f]">{benefit.title}</h3>
               <p className="mt-1 text-sm font-medium leading-6 text-[#43506a]">
                 {benefit.description}

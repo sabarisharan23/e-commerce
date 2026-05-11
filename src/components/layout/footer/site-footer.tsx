@@ -2,42 +2,42 @@ import Image from "next/image";
 import Link from "next/link";
 
 const quickLinks = [
-  "About Us",
-  "Shop All Products",
-  "Our Team",
-  "Contact Support",
-  "Terms of Service",
+  { label: "About Us", href: "/info/about-us" },
+  { label: "Shop All Products", href: "/products" },
+  { label: "Our Team", href: "/info/our-team" },
+  { label: "Contact Support", href: "/info/contact-support" },
+  { label: "Terms of Service", href: "/info/terms-of-service" },
 ];
 
 const productColumns = [
   [
-    "Bamboost",
-    "Good morning mix",
-    "Bamboo rice puttu",
-    "Mappilai samba idiya...",
-    "Nutsup",
-    "Millet Flour",
-    "Drink Mix",
+    { label: "Bamboost", href: "/products?q=Bamboost" },
+    { label: "Good morning mix", href: "/products?q=Good%20morning%20mix" },
+    { label: "Bamboo rice puttu", href: "/products?q=Bamboo%20rice%20puttu" },
+    { label: "Mappilai samba idiya...", href: "/products?q=Mappilai%20samba" },
+    { label: "Nutsup", href: "/products?q=Nutsup" },
+    { label: "Millet Flour", href: "/products?q=Millet%20Flour" },
+    { label: "Drink Mix", href: "/products?category=drink-mix" },
   ],
   [
-    "Dosa Mix",
-    "Diabetic Mix",
-    "Protein Mix",
-    "Health Mix",
-    "Weight Loss Mix",
-    "Weight Gain Mix",
-    "Healthy Ingredients",
+    { label: "Dosa Mix", href: "/products?q=Dosa%20Mix" },
+    { label: "Diabetic Mix", href: "/products?category=diabetic-mix" },
+    { label: "Protein Mix", href: "/products?category=protein-mix" },
+    { label: "Health Mix", href: "/products?category=health-mix" },
+    { label: "Weight Loss Mix", href: "/products?q=Weight%20Loss%20Mix" },
+    { label: "Weight Gain Mix", href: "/products?q=Weight%20Gain%20Mix" },
+    { label: "Healthy Ingredients", href: "/products?q=Healthy%20Ingredients" },
   ],
 ];
 
 const customerServiceLinks = [
-  "Order Tracking",
-  "Return Policy",
-  "Shipping Info",
-  "FAQs",
-  "Gift Cards",
-  "Become a Seller",
-  "Advertise",
+  { label: "Order Tracking", href: "/info/order-tracking" },
+  { label: "Return Policy", href: "/info/return-policy" },
+  { label: "Shipping Info", href: "/info/shipping-info" },
+  { label: "FAQs", href: "/info/faqs" },
+  { label: "Gift Cards", href: "/info/gift-cards" },
+  { label: "Become a Seller", href: "/info/become-a-seller" },
+  { label: "Advertise", href: "/info/advertise" },
 ];
 
 function LocationIcon() {
@@ -130,7 +130,7 @@ function FooterLinkColumn({
   links,
 }: {
   title: string;
-  links: string[];
+  links: Array<{ label: string; href: string }>;
 }) {
   return (
     <div>
@@ -139,10 +139,10 @@ function FooterLinkColumn({
       </h2>
       <ul className="mt-5 space-y-3 text-[0.98rem] font-medium text-[#5e7697] sm:mt-6 sm:space-y-4 sm:text-[1.02rem]">
         {links.map((link) => (
-          <li key={link}>
-            <a href="#" className="transition-colors hover:text-[#294b72]">
-              {link}
-            </a>
+          <li key={link.label}>
+            <Link href={link.href} className="transition-colors hover:text-[#294b72]">
+              {link.label}
+            </Link>
           </li>
         ))}
       </ul>
@@ -153,18 +153,20 @@ function FooterLinkColumn({
 function FooterActionButton({
   label,
   children,
+  href,
 }: {
   label: string;
   children: React.ReactNode;
+  href: string;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      href={href}
       aria-label={label}
       className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/30 text-white transition-colors hover:bg-white/10"
     >
       {children}
-    </button>
+    </Link>
   );
 }
 
@@ -211,10 +213,10 @@ export function SiteFooter() {
                     className="space-y-3 text-[0.98rem] font-medium text-[#5e7697] sm:space-y-4 sm:text-[1.02rem]"
                   >
                     {column.map((link) => (
-                      <li key={link}>
-                        <a href="#" className="transition-colors hover:text-[#294b72]">
-                          {link}
-                        </a>
+                      <li key={`${link.label}-${link.href}`}>
+                        <Link href={link.href} className="transition-colors hover:text-[#294b72]">
+                          {link.label}
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -236,13 +238,13 @@ export function SiteFooter() {
             © 2026 Theni Stores. All rights reserved.
           </p>
           <div className="flex items-center gap-3">
-            <FooterActionButton label="Gallery">
+            <FooterActionButton label="Gallery" href="/products">
               <CameraIcon />
             </FooterActionButton>
-            <FooterActionButton label="Payments">
+            <FooterActionButton label="Payments" href="/account?section=payments">
               <CardIcon />
             </FooterActionButton>
-            <FooterActionButton label="Contact">
+            <FooterActionButton label="Contact" href="/info/contact-support">
               <PhoneIcon />
             </FooterActionButton>
           </div>

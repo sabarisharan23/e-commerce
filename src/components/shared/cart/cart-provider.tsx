@@ -148,6 +148,10 @@ function subscribe(callback: () => void) {
   };
 }
 
+function subscribeToHydration() {
+  return () => {};
+}
+
 function writeCart(items: CartItem[]) {
   const compactItems = normalizeCartItems(items);
   const serialized = JSON.stringify(compactItems);
@@ -266,12 +270,26 @@ function CartToastBanner({
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const items = useSyncExternalStore(subscribe, readCart, () => EMPTY_CART);
+  const storedItems = useSyncExternalStore(
+    subscribe,
+    readCart,
+    () => EMPTY_CART,
+  );
+  const isReady = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const items = isReady ? storedItems : EMPTY_CART;
   const [toast, setToast] = useState<CartToast | null>(null);
 
   useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
     migrateCartStorage();
-  }, []);
+  }, [isReady]);
 
   useEffect(() => {
     if (!toast) {

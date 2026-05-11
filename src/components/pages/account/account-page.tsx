@@ -22,7 +22,11 @@ import { AccountSidebar } from "./components/account-sidebar";
 import { AccountStatsGrid } from "./components/account-stats-grid";
 import { type AccountSection } from "./account-data";
 
-export function AccountPage() {
+export function AccountPage({
+  initialSection = "profile",
+}: {
+  initialSection?: AccountSection;
+}) {
   const router = useRouter();
   const { isReady, user, signIn, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState<AccountSection>("profile");

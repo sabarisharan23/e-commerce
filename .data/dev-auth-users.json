@@ -1,0 +1,18 @@
+[
+  {
+    "authId": "member-fb77d659-9275-4118-b548-50690bdb53c2",
+    "avatarInitials": "CT",
+    "communicationPreference": "Email, Push Notifications",
+    "email": "codex-test-917d4e0d@example.com",
+    "lastLoginAt": "2026-05-09T10:56:49.245Z",
+    "membership": "Standard Member",
+    "name": "Codex Test",
+    "passwordHash": "scrypt:ea22cb20c883dc436ec507e0e83ac5a2:65b5e41526eef7fc200392ae483ad1d6c55c1b87d326d065829a3dcab8bf79163ec94edd9548d3fd25d50d06adfe2536d900e27592ba9ecef55ff6248966a447",
+    "phone": null,
+    "addressLabel": null,
+    "addressLines": [],
+    "createdAt": "2026-05-09T10:56:49.247Z",
+    "id": "dev-user-0ce4664d-b35a-458f-b108-f42e60dbdcde",
+    "updatedAt": "2026-05-09T10:56:49.247Z"
+  }
+]

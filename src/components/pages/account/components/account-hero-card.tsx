@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type AuthUser } from "@/components/shared/auth/auth-provider";
 import { ProfileAvatar } from "./profile-avatar";
 
@@ -38,6 +39,8 @@ function EditIcon() {
 }
 
 export function AccountHeroCard({ user }: { user: AuthUser }) {
+  const router = useRouter();
+
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
       <div className="h-32 bg-[linear-gradient(135deg,#f9b126,#ff7a17)] sm:h-36" />
@@ -55,10 +58,10 @@ export function AccountHeroCard({ user }: { user: AuthUser }) {
             </div>
 
             <div className="pb-1">
-              <h1 className="text-[2.2rem] font-semibold tracking-tight text-[#1a2540] sm:text-[3.15rem]">
+              <h1 className="text-[1.9rem] font-semibold tracking-tight text-[#1a2540] sm:text-[2.35rem]">
                 {user.name}
               </h1>
-              <div className="mt-2 flex items-center gap-2 text-base font-medium text-[#77859d]">
+              <div className="mt-2 flex items-center gap-2 text-sm font-medium text-[#77859d] sm:text-base">
                 <CalendarIcon />
                 <span>Member since {user.memberSince}</span>
               </div>
@@ -67,6 +70,7 @@ export function AccountHeroCard({ user }: { user: AuthUser }) {
 
           <button
             type="button"
+            onClick={() => router.push("/account?section=settings")}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#487540] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#3f6738]"
           >
             <EditIcon />

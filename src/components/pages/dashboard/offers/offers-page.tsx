@@ -133,6 +133,57 @@ function TrendIcon() {
   );
 }
 
+function PlusCircleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 stroke-current" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
+
+function PackageImageIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 stroke-current" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="m8 14 2.2-2.5L13 14l2-2 3 3" />
+      <circle cx="9" cy="9" r="1.2" />
+    </svg>
+  );
+}
+
+function GripDotsIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+      <circle cx="7" cy="6" r="1.5" />
+      <circle cx="7" cy="12" r="1.5" />
+      <circle cx="7" cy="18" r="1.5" />
+      <circle cx="17" cy="6" r="1.5" />
+      <circle cx="17" cy="12" r="1.5" />
+      <circle cx="17" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 stroke-current" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16" />
+      <path d="M9 7V5h6v2" />
+      <path d="M7 7l1 12h8l1-12" />
+      <path d="M10 11v5M14 11v5" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 stroke-current" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 function formatCurrency(value: number | null | undefined) {
   return `Rs ${new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 2,
@@ -187,16 +238,36 @@ function getOfferStatusClass(status: OfferStatus) {
   return "bg-[#eef2f7] text-[#64748b]";
 }
 
-function getBundleStatusClass(status: BundleOfferStatus) {
+function getBundleStatusBadgeClass(status: BundleOfferStatus) {
   if (status === "ACTIVE") {
-    return "text-[#16843a]";
+    return "text-[#17a34a]";
   }
 
   if (status === "SCHEDULED") {
-    return "text-[#d07a00]";
+    return "text-[#d97706]";
   }
 
-  return "text-[#64748b]";
+  if (status === "PAUSED") {
+    return "text-[#64748b]";
+  }
+
+  return "text-[#8fa0b8]";
+}
+
+function getBundleStatusLabel(status: BundleOfferStatus) {
+  if (status === "ACTIVE") {
+    return "ACTIVE";
+  }
+
+  if (status === "SCHEDULED") {
+    return "SCHEDULED";
+  }
+
+  if (status === "PAUSED") {
+    return "PAUSED";
+  }
+
+  return "DRAFT";
 }
 
 function getCampaignStatusLabel(status: SeasonalCampaignStatus) {
@@ -543,144 +614,239 @@ function BundleTab({
   onFormChange: (field: keyof BundleFormState, value: string) => void;
   onSave: () => void;
 }) {
-  const combinedValue = 23;
+  const componentList = normalizeCsv(form.components);
+  const combinedValue = 12.5 + componentList.length * 5.25;
   const savings = Math.round((combinedValue * Number(form.discountPercent || 0))) / 100;
   const customerPrice = Math.max(combinedValue - savings, 0);
+  const activeBundleCount = bundles.filter((bundle) => bundle.status === "ACTIVE").length;
 
   return (
     <div className="space-y-7">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="rounded-lg border border-[#dbe3ee] bg-white p-6 shadow-[0_18px_40px_rgba(20,31,56,0.04)]">
-          <div className="flex items-start justify-between">
-            <h2 className="text-xl font-bold text-[#17213d]">Create New Bundle</h2>
-            <span className="rounded bg-[#eef4eb] px-2.5 py-1 text-xs font-bold text-[#3f713b]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_304px] xl:items-start">
+        <section className="overflow-hidden rounded-[1.35rem] border border-[#c8d5e6] bg-white shadow-[0_18px_40px_rgba(20,31,56,0.05)]">
+          <div className="flex items-center justify-between border-b border-[#e7edf5] px-6 py-6">
+            <h2 className="text-[1.12rem] font-bold text-[#17213d]">Create New Bundle</h2>
+            <span className="rounded-md bg-[#eef4eb] px-3 py-1 text-[0.72rem] font-bold uppercase tracking-[0.08em] text-[#3f713b]">
               Draft
             </span>
           </div>
 
-          <div className="mt-7 space-y-5">
-            <label className="block">
+          <div className="space-y-6 px-6 py-6">
+            <label className="block pb-1">
               <FieldLabel>Bundle Name</FieldLabel>
               <input
                 value={form.name}
                 onChange={(event) => onFormChange("name", event.target.value)}
-                className="mt-2 h-11 w-full rounded-lg border border-[#dbe3ee] px-4 text-sm font-semibold text-[#24304a] outline-none"
+                className="mt-2 h-12 w-full rounded-xl border border-[#dbe3ee] px-4 text-sm font-semibold text-[#24304a] outline-none"
               />
             </label>
 
-            <label className="block">
-              <FieldLabel>Primary Product</FieldLabel>
-              <input
-                value={form.primaryProduct}
-                onChange={(event) => onFormChange("primaryProduct", event.target.value)}
-                className="mt-2 h-11 w-full rounded-lg border border-[#dbe3ee] px-4 text-sm font-semibold text-[#24304a] outline-none"
-              />
-            </label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FieldLabel>Primary Product</FieldLabel>
+              </div>
+              <div className="flex items-center gap-4 rounded-[1rem] border border-[#dbe3ee] px-4 py-4">
+                <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-[#f3f6fb] text-[#7c8da7]">
+                  <PackageImageIcon />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <input
+                    value={form.primaryProduct}
+                    onChange={(event) => onFormChange("primaryProduct", event.target.value)}
+                    className="w-full border-none bg-transparent text-[1.08rem] font-semibold text-[#17213d] outline-none"
+                  />
+                  <p className="mt-1 text-sm text-[#7b8ea8]">
+                    ID: PROD-8829 • Base Price: $12.50
+                  </p>
+                </div>
+                <button type="button" className="text-sm font-bold text-[#3f713b]">
+                  Change
+                </button>
+              </div>
+            </div>
 
-            <label className="block">
-              <FieldLabel>Frequently Bought Together</FieldLabel>
-              <textarea
-                value={form.components}
-                onChange={(event) => onFormChange("components", event.target.value)}
-                rows={3}
-                className="mt-2 w-full resize-none rounded-lg border border-[#dbe3ee] px-4 py-3 text-sm text-[#24304a] outline-none"
-              />
-              <p className="mt-2 text-xs text-[#8fa0b8]">Comma separated product names.</p>
-            </label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FieldLabel>Frequently Bought Together</FieldLabel>
+                <button type="button" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#3f713b]">
+                  <PlusCircleIcon />
+                  <span>Add Product</span>
+                </button>
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <textarea
+                  value={form.components}
+                  onChange={(event) => onFormChange("components", event.target.value)}
+                  rows={3}
+                  className="sr-only"
+                />
+              </label>
+
+              <div className="space-y-2.5">
+                {componentList.map((component, index) => (
+                  <div
+                    key={`${component}-${index}`}
+                    className="flex items-center gap-4 rounded-[1rem] border border-[#dbe3ee] px-3 py-3.5"
+                  >
+                    <div className="text-[#7a8ca5]">
+                      <GripDotsIcon />
+                    </div>
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#f3f6fb] text-[#7c8da7]">
+                      <PackageImageIcon />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[1.02rem] font-medium text-[#17213d]">{component}</p>
+                      <p className="mt-0.5 text-sm text-[#7b8ea8]">${(4.5 + index * 1.5).toFixed(2)}</p>
+                    </div>
+                    <button type="button" className="text-[#ff5a5f]">
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-[#8fa0b8]">Edit the product list as comma-separated names in the saved form data.</p>
+            </div>
+
+            <div className="border-t border-[#edf1f6]" />
+
+            <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <FieldLabel>Bundle Discount (%)</FieldLabel>
-                <input
-                  type="number"
-                  value={form.discountPercent}
-                  onChange={(event) => onFormChange("discountPercent", event.target.value)}
-                  className="mt-2 h-11 w-full rounded-lg border border-[#dbe3ee] px-4 text-sm text-[#24304a] outline-none"
-                />
+                <div className="relative mt-2">
+                  <input
+                    type="number"
+                    value={form.discountPercent}
+                    onChange={(event) => onFormChange("discountPercent", event.target.value)}
+                    className="h-12 w-full rounded-xl border border-[#dbe3ee] px-4 pr-10 text-sm font-semibold text-[#24304a] outline-none"
+                  />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8fa0b8]">
+                    %
+                  </span>
+                </div>
               </label>
               <label className="block">
                 <FieldLabel>Bundle Status</FieldLabel>
-                <select
-                  value={form.status}
-                  onChange={(event) => onFormChange("status", event.target.value)}
-                  className="mt-2 h-11 w-full rounded-lg border border-[#dbe3ee] px-4 text-sm text-[#24304a] outline-none"
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="SCHEDULED">Active (Scheduled)</option>
-                  <option value="PAUSED">Paused</option>
-                </select>
+                <div className="relative mt-2">
+                  <select
+                    value={form.status}
+                    onChange={(event) => onFormChange("status", event.target.value)}
+                    className="h-12 w-full appearance-none rounded-xl border border-[#dbe3ee] px-4 pr-10 text-sm font-semibold text-[#24304a] outline-none"
+                  >
+                    <option value="DRAFT">Draft</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="SCHEDULED">Active (Scheduled)</option>
+                    <option value="PAUSED">Paused</option>
+                  </select>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#6f7d92]">
+                    <ChevronDownIcon />
+                  </span>
+                </div>
               </label>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-            {message ? (
-              <p className="mr-auto rounded-lg bg-[#eef4eb] px-4 py-2 text-sm font-semibold text-[#3f713b]">
-                {message}
-              </p>
-            ) : null}
-            <button type="button" className="h-11 rounded-lg px-5 text-sm font-bold text-[#526179]">
-              Discard Draft
-            </button>
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={onSave}
-              className="h-11 rounded-lg bg-[#3f713b] px-10 text-sm font-bold text-white shadow-[0_12px_22px_rgba(63,113,59,0.25)] disabled:opacity-60"
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+          <div className="border-t border-[#edf1f6] px-6 py-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              {message ? (
+                <p className="mr-auto rounded-xl bg-[#eef4eb] px-4 py-2.5 text-sm font-semibold text-[#3f713b]">
+                  {message}
+                </p>
+              ) : null}
+              <button type="button" className="h-12 rounded-xl px-5 text-sm font-bold text-[#526179]">
+                Discard Draft
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={onSave}
+                className="h-12 rounded-xl bg-[#3f713b] px-12 text-sm font-bold text-white shadow-[0_14px_26px_rgba(82,49,153,0.12)] disabled:opacity-60"
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </section>
 
         <aside className="space-y-5">
-          <section className="rounded-lg bg-[#3f713b] p-6 text-white">
-            <p className="text-xs font-bold uppercase text-white/75">Live Configuration</p>
-            <div className="mt-5 space-y-3 text-sm text-white/82">
+          <section className="rounded-[1.2rem] bg-[#436f3c] p-6 text-white shadow-[0_18px_35px_rgba(63,113,59,0.22)]">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/75">Live Configuration</p>
+            <div className="mt-5 space-y-3 border-b border-white/18 pb-4 text-sm text-white/82">
               <div className="flex justify-between">
                 <span>Combined Value</span>
-                <span>$23.00</span>
+                <span>${combinedValue.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Bundle Discount ({form.discountPercent || 0}%)</span>
                 <span>-${savings.toFixed(2)}</span>
               </div>
             </div>
-            <p className="mt-5 text-xs uppercase text-white/75">Customer Price</p>
-            <p className="text-4xl font-bold">${customerPrice.toFixed(2)}</p>
+            <div className="mt-4 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm text-white/72">Customer Price</p>
+                <p className="text-[3rem] font-bold leading-none">${customerPrice.toFixed(2)}</p>
+              </div>
+              <span className="rounded-md bg-white/12 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.06em] text-[#d9f1cf]">
+                Saves ${savings.toFixed(2)}
+              </span>
+            </div>
           </section>
 
-          <section className="rounded-lg border border-[#dbe3ee] bg-white p-6">
-            <h3 className="text-base font-bold text-[#17213d]">Performance Estimate</h3>
-            <div className="mt-5 rounded-lg bg-[#f5f6fa] p-4">
-              <p className="text-xs font-bold uppercase text-[#8fa0b8]">Expected conversion boost</p>
-              <p className="mt-1 text-2xl font-bold text-[#3f713b]">+12.4%</p>
+          <section className="rounded-[1.2rem] border border-[#c8d5e6] bg-white p-6 shadow-[0_14px_30px_rgba(20,31,56,0.05)]">
+            <div className="flex items-center gap-2">
+              <TrendIcon />
+              <h3 className="text-[1.05rem] font-bold text-[#17213d]">Performance Estimate</h3>
             </div>
-            <div className="mt-3 rounded-lg bg-[#f5f6fa] p-4">
-              <p className="text-xs font-bold uppercase text-[#8fa0b8]">Projected weekly revenue</p>
-              <p className="mt-1 text-2xl font-bold text-[#17213d]">$1,420.00</p>
+            <div className="mt-5 rounded-xl bg-[#f5f6fa] p-4">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-[#8fa0b8]">Expected conversion boost</p>
+              <p className="mt-1 text-[2rem] font-bold text-[#3f713b]">+12.4%</p>
             </div>
+            <div className="mt-4 rounded-xl bg-[#f5f6fa] p-4">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-[#8fa0b8]">Projected weekly revenue</p>
+              <p className="mt-1 text-[2rem] font-bold text-[#17213d]">$1,420.00</p>
+            </div>
+            <button type="button" className="mt-5 h-12 w-full rounded-xl bg-[#eef2f7] text-sm font-bold text-[#24304a]">
+              Run Historical Simulation
+            </button>
           </section>
         </aside>
       </div>
 
-      <section className="overflow-hidden rounded-lg border border-[#dbe3ee] bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5">
-          <h2 className="text-xl font-bold text-[#17213d]">Existing Bundles</h2>
-          <span className="rounded-full border border-[#cbdcf7] px-3 py-1 text-xs font-bold text-[#3f713b]">
-            Active ({bundles.filter((bundle) => bundle.status === "ACTIVE").length})
-          </span>
+      <section className="overflow-hidden rounded-[1.35rem] border border-[#c8d5e6] bg-white shadow-[0_18px_40px_rgba(20,31,56,0.05)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <h2 className="text-[1.12rem] font-bold text-[#17213d]">Existing Bundles</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-[#d9e2ec] bg-white px-3 py-1 text-xs font-bold text-[#60708e]">
+                All ({bundles.length})
+              </span>
+              <span className="rounded-full border border-[#cad7b9] bg-[#eef4eb] px-3 py-1 text-xs font-bold text-[#3f713b]">
+                Active ({activeBundleCount})
+              </span>
+            </div>
+          </div>
+
+          <div className="relative">
+            <select className="h-10 appearance-none rounded-xl border border-[#dbe3ee] bg-white px-4 pr-10 text-sm font-semibold text-[#24304a] outline-none">
+              <option>Sort by: Total Sales</option>
+            </select>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#6f7d92]">
+              <ChevronDownIcon />
+            </span>
+          </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0">
-            <thead>
-              <tr className="bg-[#f7f8fc] text-left text-xs font-bold uppercase text-[#8fa0b8]">
+            <thead className="border-t border-[#edf1f6]">
+              <tr className="bg-[#f7f8fc] text-left text-xs font-bold uppercase tracking-[0.1em] text-[#7d8ea7]">
                 <th className="px-6 py-4">Bundle Details</th>
                 <th className="px-6 py-4">Components</th>
                 <th className="px-6 py-4">Discount</th>
                 <th className="px-6 py-4">Total Sales</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -688,7 +854,7 @@ function BundleTab({
                 <tr key={bundle.id}>
                   <td className="border-b border-[#edf1f6] px-6 py-5">
                     <p className="font-bold text-[#17213d]">{bundle.name}</p>
-                    <p className="text-xs text-[#8fa0b8]">{bundle.bundleCode}</p>
+                    <p className="text-xs text-[#8fa0b8]">{bundle.bundleCode} • Created {formatDate(bundle.createdAt)}</p>
                   </td>
                   <td className="border-b border-[#edf1f6] px-6 py-5">
                     <div className="flex -space-x-2">
@@ -703,7 +869,7 @@ function BundleTab({
                     </div>
                   </td>
                   <td className="border-b border-[#edf1f6] px-6 py-5">
-                    <span className="rounded bg-[#dff7e9] px-3 py-1 text-xs font-bold text-[#16843a]">
+                    <span className="rounded-md bg-[#dff7e9] px-3 py-1.5 text-xs font-bold text-[#16843a]">
                       {bundle.discountPercent}% OFF
                     </span>
                   </td>
@@ -712,14 +878,25 @@ function BundleTab({
                     <p className="text-xs text-[#8fa0b8]">{bundle.unitsSold} units sold</p>
                   </td>
                   <td className="border-b border-[#edf1f6] px-6 py-5">
-                    <span className={`text-xs font-bold uppercase ${getBundleStatusClass(bundle.status)}`}>
-                      {bundle.status}
+                    <span className={`inline-flex items-center gap-2 text-xs font-bold uppercase ${getBundleStatusBadgeClass(bundle.status)}`}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {getBundleStatusLabel(bundle.status)}
                     </span>
+                  </td>
+                  <td className="border-b border-[#edf1f6] px-6 py-5 text-right">
+                    <button type="button" className="text-sm font-semibold text-[#526179]">
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="border-t border-[#edf1f6] px-6 py-4 text-center">
+          <button type="button" className="text-sm font-bold text-[#3f713b]">
+            View All {bundles.length} Bundles
+          </button>
         </div>
       </section>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { savedAddresses, type SavedAddressRecord } from "../account-data";
 
 function PlusIcon() {
@@ -94,20 +95,93 @@ function MapPreview() {
 }
 
 export function AccountAddresses() {
+  const [addresses, setAddresses] = useState(savedAddresses);
+
+  const openAddressEditor = (current?: SavedAddressRecord) => {
+    const label = window.prompt("Address label", current?.label ?? "Home");
+    if (!label) {
+      return;
+    }
+
+    const typeInput = window.prompt(
+      "Address type (home or office)",
+      current?.type ?? "home",
+    );
+    if (!typeInput) {
+      return;
+    }
+
+    const lineOne = window.prompt("Address line 1", current?.lines[0] ?? "");
+    if (!lineOne) {
+      return;
+    }
+
+    const lineTwo = window.prompt("Address line 2", current?.lines[1] ?? "");
+    if (!lineTwo) {
+      return;
+    }
+
+    const phone = window.prompt("Phone number", current?.phone ?? "");
+    if (!phone) {
+      return;
+    }
+
+    const makeDefault = window.confirm("Set this address as your default address?");
+    const nextAddress: SavedAddressRecord = {
+      id: current?.id ?? `address-${Date.now()}`,
+      isDefault: makeDefault,
+      label: label.trim(),
+      lines: [lineOne.trim(), lineTwo.trim()],
+      phone: phone.trim(),
+      type: typeInput.toLowerCase() === "office" ? "office" : "home",
+    };
+
+    setAddresses((existing) => {
+      const base = current
+        ? existing.map((address) => (address.id === current.id ? nextAddress : address))
+        : [...existing, nextAddress];
+
+      if (!makeDefault) {
+        return base;
+      }
+
+      return base.map((address) => ({
+        ...address,
+        isDefault: address.id === nextAddress.id,
+      }));
+    });
+  };
+
+  const removeAddress = (addressId: string) => {
+    setAddresses((existing) => {
+      const target = existing.find((address) => address.id === addressId);
+      if (!target || !window.confirm(`Delete ${target.label} address?`)) {
+        return existing;
+      }
+
+      const next = existing.filter((address) => address.id !== addressId);
+      if (next.length > 0 && !next.some((address) => address.isDefault)) {
+        next[0] = { ...next[0], isDefault: true };
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-7">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <h1 className="text-[2.4rem] font-semibold tracking-tight text-[#1a2540] sm:text-[3rem]">
+          <h1 className="text-[1.95rem] font-semibold tracking-tight text-[#1a2540] sm:text-[2.2rem]">
             Saved Addresses
           </h1>
-          <p className="mt-2 text-base leading-8 text-[#64738c] sm:text-lg">
+          <p className="mt-2 text-sm leading-7 text-[#64738c] sm:text-base">
             Manage your delivery locations for faster checkout.
           </p>
         </div>
 
         <button
           type="button"
+          onClick={() => openAddressEditor()}
           className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#487540] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#3d6437]"
         >
           <PlusIcon />
@@ -116,7 +190,7 @@ export function AccountAddresses() {
       </div>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        {savedAddresses.map((address) => (
+        {addresses.map((address) => (
           <article
             key={address.id}
             className={`rounded-[2rem] border bg-white p-6 shadow-[0_20px_60px_rgba(20,31,56,0.06)] ${
@@ -129,7 +203,7 @@ export function AccountAddresses() {
                   <HomeIcon type={address.type} />
                 </div>
                 <div>
-                  <h2 className="text-[2rem] font-semibold tracking-tight text-[#1a2540]">
+                  <h2 className="text-[1.35rem] font-semibold tracking-tight text-[#1a2540]">
                     {address.label}
                   </h2>
                 </div>
@@ -142,13 +216,13 @@ export function AccountAddresses() {
               ) : null}
             </div>
 
-            <div className="mt-6 space-y-1 text-[1.15rem] leading-8 text-[#5c6b84]">
+            <div className="mt-6 space-y-1 text-sm leading-7 text-[#5c6b84] sm:text-base">
               {address.lines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
             </div>
 
-            <div className="mt-5 flex items-center gap-2 text-base text-[#67758e]">
+            <div className="mt-5 flex items-center gap-2 text-sm text-[#67758e] sm:text-base">
               <PhoneIcon />
               <span>{address.phone}</span>
             </div>
@@ -157,13 +231,15 @@ export function AccountAddresses() {
               <div className="flex items-center gap-5">
                 <button
                   type="button"
-                  className="text-base font-semibold text-[#487540] transition-colors hover:text-[#3d6437]"
+                  onClick={() => openAddressEditor(address)}
+                  className="text-sm font-semibold text-[#487540] transition-colors hover:text-[#3d6437]"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
-                  className="text-base font-semibold text-[#b0bad0] transition-colors hover:text-[#8694ab]"
+                  onClick={() => removeAddress(address.id)}
+                  className="text-sm font-semibold text-[#b0bad0] transition-colors hover:text-[#8694ab]"
                 >
                   Delete
                 </button>
@@ -176,15 +252,16 @@ export function AccountAddresses() {
 
         <button
           type="button"
+          onClick={() => openAddressEditor()}
           className="flex min-h-[280px] flex-col items-center justify-center rounded-[2rem] border border-[#edf1f6] bg-[#f7fafe] px-6 py-10 text-center shadow-[0_20px_60px_rgba(20,31,56,0.04)] transition-colors hover:bg-[#f3f7fc]"
         >
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e8eef8] text-[#1f2c47]">
             <PinPlusIcon />
           </div>
-          <h3 className="mt-6 text-[1.9rem] font-semibold tracking-tight text-[#1a2540]">
+          <h3 className="mt-6 text-[1.45rem] font-semibold tracking-tight text-[#1a2540]">
             Add Another Address
           </h3>
-          <p className="mt-3 max-w-[18rem] text-base leading-7 text-[#65748d]">
+          <p className="mt-3 max-w-[18rem] text-sm leading-7 text-[#65748d] sm:text-base">
             Delivery to a different location? Add it here.
           </p>
         </button>
@@ -196,8 +273,8 @@ export function AccountAddresses() {
             <span className="text-lg font-bold">i</span>
           </div>
           <div>
-            <h2 className="text-[1.7rem] font-semibold tracking-tight">Delivery Tip</h2>
-            <p className="mt-2 max-w-[48rem] text-base leading-8 text-[#476244]">
+            <h2 className="text-[1.35rem] font-semibold tracking-tight">Delivery Tip</h2>
+            <p className="mt-2 max-w-[48rem] text-sm leading-7 text-[#476244] sm:text-base">
               Setting a default address ensures a faster 1-click checkout
               experience. Your primary address is used to estimate shipping times
               and availability of fresh organic produce in your area.

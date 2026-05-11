@@ -10,6 +10,7 @@ import type { ProductDetails } from "@/components/shared";
 type ProductsPageProps = {
   categoriesWithProducts: ProductCategoryWithProducts[];
   initialCategoryId?: string | null;
+  initialSearchQuery?: string;
   products: ProductDetails[];
 };
 
@@ -257,6 +258,30 @@ function getPageCopy(categoryId: string | null) {
     description:
       "Explore wholesome flours, mixes, and pantry essentials from our full Theni Store collection.",
   };
+}
+
+function normalizeSearchQuery(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function matchesSearchQuery(product: ProductDetails, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const searchableContent = [
+    product.name,
+    product.shortDescription,
+    product.description,
+    product.category,
+    product.sku,
+    product.weight,
+    ...(product.highlights ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return searchableContent.includes(query);
 }
 
 function buildPagination(currentPage: number, totalPages: number) {
@@ -541,6 +566,7 @@ function ProductCard({
 function FiltersPanel({
   categoriesWithProducts,
   productsCount,
+  allProductsActive,
   selectedCategoryId,
   onCategoryChange,
   minPrice,
@@ -555,6 +581,7 @@ function FiltersPanel({
 }: {
   categoriesWithProducts: ProductCategoryWithProducts[];
   productsCount: number;
+  allProductsActive: boolean;
   selectedCategoryId: string | null;
   onCategoryChange: (value: string | null) => void;
   minPrice: number;
@@ -593,7 +620,7 @@ function FiltersPanel({
               type="button"
               onClick={() => onCategoryChange(null)}
               className={`flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-base font-medium transition-colors ${
-                selectedCategoryId === null
+                allProductsActive
                   ? "bg-[#5f8755] text-white"
                   : "text-[#5e7697] hover:bg-[#f3f6ef] hover:text-[#294b72]"
               }`}
@@ -689,10 +716,16 @@ function FiltersPanel({
 export function ProductsPage({
   categoriesWithProducts,
   initialCategoryId = null,
+  initialSearchQuery = "",
   products,
 }: ProductsPageProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     initialCategoryId,
+  );
+  const normalizedSearchQuery = normalizeSearchQuery(initialSearchQuery);
+  const isSearchMode = normalizedSearchQuery.length > 0;
+  const [allProductsActive, setAllProductsActive] = useState(
+    initialCategoryId === null && !isSearchMode,
   );
   const [sortBy, setSortBy] = useState<SortOptionId>("newest");
   const [selectedProduct, setSelectedProduct] = useState<ProductDetails | null>(null);
@@ -742,27 +775,45 @@ export function ProductsPage({
     };
   }, [isFiltersOpen]);
 
-  const activeCategory = categoriesWithProducts.find(
+  const searchableProducts = useMemo(
+    () => products.filter((product) => matchesSearchQuery(product, normalizedSearchQuery)),
+    [normalizedSearchQuery, products],
+  );
+  const searchableCategories = useMemo(
+    () =>
+      categoriesWithProducts
+        .map((category) => ({
+          ...category,
+          products: category.products.filter((product) =>
+            matchesSearchQuery(product, normalizedSearchQuery),
+          ),
+        }))
+        .filter((category) => category.products.length > 0),
+    [categoriesWithProducts, normalizedSearchQuery],
+  );
+
+  const activeCategory = searchableCategories.find(
     (category) => category.id === selectedCategoryId,
   );
   const pageCopy = getPageCopy(selectedCategoryId);
 
   const baseProducts = useMemo(() => {
     if (!selectedCategoryId) {
-      return products;
+      return searchableProducts;
     }
 
     return activeCategory?.products ?? [];
-  }, [activeCategory, products, selectedCategoryId]);
+  }, [activeCategory, searchableProducts, selectedCategoryId]);
 
   const filteredProducts = useMemo(() => {
     return baseProducts.filter((product) => {
+      const matchesSearch = matchesSearchQuery(product, normalizedSearchQuery);
       const withinPrice = product.price >= minPrice && product.price <= maxPrice;
       const withinRating = ratingOnly ? product.rating >= 4 : true;
 
-      return withinPrice && withinRating;
+      return matchesSearch && withinPrice && withinRating;
     });
-  }, [baseProducts, maxPrice, minPrice, ratingOnly]);
+  }, [baseProducts, maxPrice, minPrice, normalizedSearchQuery, ratingOnly]);
 
   const sortedProducts = useMemo(() => {
     const products = [...filteredProducts];
@@ -794,18 +845,27 @@ export function ProductsPage({
 
   const handleCategoryChange = (value: string | null) => {
     setSelectedCategoryId(value);
+    setAllProductsActive(value === null);
     setCurrentPage(1);
     setIsFiltersOpen(false);
   };
 
   const clearFilters = () => {
     setSelectedCategoryId(initialCategoryId);
+    setAllProductsActive(initialCategoryId === null && !isSearchMode);
     setMinPrice(absoluteMinPrice);
     setMaxPrice(absoluteMaxPrice);
     setRatingOnly(false);
     setSortBy("newest");
     setCurrentPage(1);
   };
+
+  const title = normalizedSearchQuery
+    ? `Search Results for "${initialSearchQuery.trim()}"`
+    : pageCopy.title;
+  const description = normalizedSearchQuery
+    ? `Showing products that match "${initialSearchQuery.trim()}". Use filters to narrow the results.`
+    : pageCopy.description;
 
   return (
     <>
@@ -820,8 +880,14 @@ export function ProductsPage({
             </Link>
             <span>&gt;</span>
             <Link href="/products" className="transition-colors hover:text-[#294b72]">
-              Featured Categories
+              Products
             </Link>
+            {normalizedSearchQuery ? (
+              <>
+                <span>&gt;</span>
+                <span className="text-[#4f7d49]">Search</span>
+              </>
+            ) : null}
             {activeCategory ? (
               <>
                 <span>&gt;</span>
@@ -834,8 +900,9 @@ export function ProductsPage({
             <aside className="hidden lg:block">
               <div className="sticky top-6 rounded-[24px] border border-[#e8ece3] bg-[#fbfdf8] p-5 shadow-[0_14px_32px_rgba(18,37,61,0.06)]">
                 <FiltersPanel
-                  categoriesWithProducts={categoriesWithProducts}
-                  productsCount={products.length}
+                  categoriesWithProducts={searchableCategories}
+                  productsCount={searchableProducts.length}
+                  allProductsActive={allProductsActive}
                   selectedCategoryId={selectedCategoryId}
                   onCategoryChange={handleCategoryChange}
                   minPrice={minPrice}
@@ -864,11 +931,16 @@ export function ProductsPage({
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div className="max-w-3xl">
                   <h1 className="text-4xl font-semibold tracking-tight text-[#18213d] sm:text-[3.5rem]">
-                    {pageCopy.title}
+                    {title}
                   </h1>
                   <p className="mt-3 max-w-2xl text-base leading-7 text-[#6d7d8d] sm:text-lg">
-                    {pageCopy.description}
+                    {description}
                   </p>
+                  {normalizedSearchQuery ? (
+                    <p className="mt-3 text-sm font-medium text-[#4f7d49]">
+                      Keyword: {initialSearchQuery.trim()}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -992,8 +1064,9 @@ export function ProductsPage({
                       No products match these filters
                     </h2>
                     <p className="mt-3 text-base text-[#667480]">
-                      Try a different category, widen the price range, or remove the
-                      rating filter.
+                      {normalizedSearchQuery
+                        ? `Try another keyword, choose a different category, widen the price range, or remove the rating filter.`
+                        : `Try a different category, widen the price range, or remove the rating filter.`}
                     </p>
                     <button
                       type="button"
@@ -1031,8 +1104,9 @@ export function ProductsPage({
             </div>
 
             <FiltersPanel
-              categoriesWithProducts={categoriesWithProducts}
-              productsCount={products.length}
+              categoriesWithProducts={searchableCategories}
+              productsCount={searchableProducts.length}
+              allProductsActive={allProductsActive}
               selectedCategoryId={selectedCategoryId}
               onCategoryChange={handleCategoryChange}
               minPrice={minPrice}

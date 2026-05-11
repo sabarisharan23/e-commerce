@@ -127,6 +127,10 @@ function subscribe(callback: () => void) {
   };
 }
 
+function subscribeToHydration() {
+  return () => {};
+}
+
 function writeWishlist(items: WishlistItem[]) {
   const compactItems = normalizeWishlistItems(items);
   const serialized = JSON.stringify(compactItems);
@@ -164,11 +168,25 @@ function migrateWishlistStorage() {
 }
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
-  const items = useSyncExternalStore(subscribe, readWishlist, () => EMPTY_WISHLIST);
+  const storedItems = useSyncExternalStore(
+    subscribe,
+    readWishlist,
+    () => EMPTY_WISHLIST,
+  );
+  const isReady = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const items = isReady ? storedItems : EMPTY_WISHLIST;
 
   useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
     migrateWishlistStorage();
-  }, []);
+  }, [isReady]);
 
   const value = useMemo<WishlistContextValue>(
     () => ({

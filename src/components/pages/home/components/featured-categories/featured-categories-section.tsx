@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { featuredCategories } from "./featured-categories-data";
 
 function ArrowRightIcon() {
@@ -44,9 +44,13 @@ function chunkCategories<T>(items: T[], size: number) {
   return chunks;
 }
 
+const SWIPE_THRESHOLD = 50;
+
 export function FeaturedCategoriesSection() {
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [activePage, setActivePage] = useState(0);
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeCurrentXRef = useRef<number | null>(null);
 
   useEffect(() => {
     const updateItemsPerPage = () => {
@@ -66,6 +70,47 @@ export function FeaturedCategoriesSection() {
   const currentPage = Math.min(activePage, Math.max(pages.length - 1, 0));
 
   const showDots = itemsPerPage < 6 || featuredCategories.length > 6;
+  const showPreviousPage = () => {
+    setActivePage((page) => Math.max(page - 1, 0));
+  };
+
+  const showNextPage = () => {
+    setActivePage((page) => Math.min(page + 1, Math.max(pages.length - 1, 0)));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.clientX;
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null) {
+      return;
+    }
+
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerEnd = () => {
+    if (swipeStartXRef.current === null || swipeCurrentXRef.current === null) {
+      swipeStartXRef.current = null;
+      swipeCurrentXRef.current = null;
+      return;
+    }
+
+    const swipeDistance = swipeStartXRef.current - swipeCurrentXRef.current;
+
+    if (Math.abs(swipeDistance) >= SWIPE_THRESHOLD) {
+      if (swipeDistance > 0) {
+        showNextPage();
+      } else {
+        showPreviousPage();
+      }
+    }
+
+    swipeStartXRef.current = null;
+    swipeCurrentXRef.current = null;
+  };
 
   return (
     <section className="bg-white">
@@ -83,7 +128,14 @@ export function FeaturedCategoriesSection() {
           </Link>
         </div>
 
-        <div className="mt-8 overflow-hidden">
+        <div
+          className="mt-8 overflow-hidden touch-pan-y"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onPointerLeave={handlePointerEnd}
+        >
           <div
             className="flex transition-transform duration-500 ease-out"
             style={{ transform: `translateX(-${currentPage * 100}%)` }}

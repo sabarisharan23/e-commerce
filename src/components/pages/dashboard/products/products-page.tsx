@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardPanel, DashboardShell } from "../dashboard-shell";
 import { productCategoryOptions, productInventoryOverview } from "./products-data";
@@ -611,6 +612,7 @@ function Pagination({
 }
 
 export function DashboardProductsPage() {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<ProductRecord[]>([]);
@@ -758,9 +760,7 @@ export function DashboardProductsPage() {
   }
 
   function openCreateDialog() {
-    setDialogMode("create");
-    setEditingProduct(null);
-    setIsEditorOpen(true);
+    router.push("/dashboard/products/new");
   }
 
   function openEditDialog(productId: string) {

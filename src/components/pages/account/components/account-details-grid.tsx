@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type AuthUser } from "@/components/shared/auth/auth-provider";
 
 function ContactIcon() {
@@ -54,12 +55,14 @@ function MapIcon() {
 }
 
 export function AccountDetailsGrid({ user }: { user: AuthUser }) {
+  const router = useRouter();
+
   return (
     <section className="grid gap-6 xl:grid-cols-2">
       <article className="rounded-[2rem] border border-[#edf1f6] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(20,31,56,0.06)] sm:px-8 sm:py-7">
         <div className="flex items-center gap-3 text-[#487540]">
           <ContactIcon />
-          <h2 className="text-[1.5rem] font-semibold tracking-tight text-[#1a2540]">
+          <h2 className="text-[1.2rem] font-semibold tracking-tight text-[#1a2540]">
             Contact Information
           </h2>
         </div>
@@ -69,7 +72,7 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#7b89a0]">
               Email Address
             </p>
-            <p className="mt-2 text-[1.35rem] font-medium text-[#1f2c47]">
+            <p className="mt-2 text-base font-medium text-[#1f2c47]">
               {user.email}
             </p>
           </div>
@@ -78,7 +81,7 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#7b89a0]">
               Phone Number
             </p>
-            <p className="mt-2 text-[1.35rem] font-medium text-[#1f2c47]">
+            <p className="mt-2 text-base font-medium text-[#1f2c47]">
               {user.phone}
             </p>
           </div>
@@ -87,7 +90,7 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#7b89a0]">
               Communication Preference
             </p>
-            <p className="mt-2 text-[1.35rem] font-medium text-[#1f2c47]">
+            <p className="mt-2 text-base font-medium text-[#1f2c47]">
               {user.communicationPreference}
             </p>
           </div>
@@ -97,7 +100,7 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
       <article className="rounded-[2rem] border border-[#edf1f6] bg-white px-6 py-6 shadow-[0_20px_60px_rgba(20,31,56,0.06)] sm:px-8 sm:py-7">
         <div className="flex items-center gap-3 text-[#487540]">
           <HomeIcon />
-          <h2 className="text-[1.5rem] font-semibold tracking-tight text-[#1a2540]">
+          <h2 className="text-[1.2rem] font-semibold tracking-tight text-[#1a2540]">
             Default Shipping
           </h2>
         </div>
@@ -107,10 +110,10 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
             <MapIcon />
           </div>
           <div className="min-w-0">
-            <p className="text-[1.35rem] font-semibold text-[#1f2c47]">
+            <p className="text-base font-semibold text-[#1f2c47] sm:text-[1.05rem]">
               {user.addressLabel}
             </p>
-            <div className="mt-2 space-y-1 text-base leading-7 text-[#617089]">
+            <div className="mt-2 space-y-1 text-sm leading-7 text-[#617089] sm:text-base">
               {user.addressLines.map((line) => (
                 <p key={line}>{line}</p>
               ))}
@@ -120,6 +123,7 @@ export function AccountDetailsGrid({ user }: { user: AuthUser }) {
 
         <button
           type="button"
+          onClick={() => router.push("/account?section=addresses")}
           className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-2xl border border-[#f0d9ca] text-sm font-semibold text-[#487540] transition-colors hover:bg-[#fcfaf6]"
         >
           Manage Addresses

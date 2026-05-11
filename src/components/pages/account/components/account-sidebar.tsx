@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { type AuthUser } from "@/components/shared/auth/auth-provider";
 import {
   type AccountMenuItem,
@@ -95,6 +96,8 @@ export function AccountSidebar({
   onSectionChange,
   onSignOut,
 }: AccountSidebarProps) {
+  const router = useRouter();
+
   return (
     <div className="space-y-6">
       <aside className="rounded-[2rem] border border-[#e8edf4] bg-white p-6 shadow-[0_20px_60px_rgba(20,31,56,0.06)]">
@@ -157,6 +160,7 @@ export function AccountSidebar({
         </p>
         <button
           type="button"
+          onClick={() => router.push("/info/premium-membership")}
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-2xl bg-white text-sm font-semibold text-[#487540] transition-colors hover:bg-[#f2f6ee]"
         >
           Learn More

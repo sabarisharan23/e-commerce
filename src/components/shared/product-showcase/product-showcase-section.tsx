@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/components/shared/cart/cart-provider";
 import { useWishlist } from "@/components/shared/wishlist/wishlist-provider";
 import type {
@@ -222,6 +222,8 @@ function chunkProducts(items: ProductDetails[], size: number) {
 
   return chunks;
 }
+
+const SWIPE_THRESHOLD = 50;
 
 function QuickViewModal({
   product,
@@ -530,6 +532,8 @@ export function ProductShowcaseSection({
   const [selectedProduct, setSelectedProduct] = useState<ProductDetails | null>(null);
   const [activePage, setActivePage] = useState(0);
   const [cardsPerView, setCardsPerView] = useState(4);
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeCurrentXRef = useRef<number | null>(null);
   const countdown = useCountdown(section.countdownTarget);
   const isCarousel = section.layout === "carousel";
   const showHeader = section.showHeader ?? true;
@@ -557,6 +561,50 @@ export function ProductShowcaseSection({
   const currentPage = isCarousel
     ? Math.min(activePage, Math.max(carouselPages.length - 1, 0))
     : 0;
+
+  const showPreviousPage = () => {
+    setActivePage((page) => Math.max(page - 1, 0));
+  };
+
+  const showNextPage = () => {
+    setActivePage((page) =>
+      Math.min(page + 1, Math.max(carouselPages.length - 1, 0)),
+    );
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.clientX;
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null) {
+      return;
+    }
+
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerEnd = () => {
+    if (swipeStartXRef.current === null || swipeCurrentXRef.current === null) {
+      swipeStartXRef.current = null;
+      swipeCurrentXRef.current = null;
+      return;
+    }
+
+    const swipeDistance = swipeStartXRef.current - swipeCurrentXRef.current;
+
+    if (Math.abs(swipeDistance) >= SWIPE_THRESHOLD) {
+      if (swipeDistance > 0) {
+        showNextPage();
+      } else {
+        showPreviousPage();
+      }
+    }
+
+    swipeStartXRef.current = null;
+    swipeCurrentXRef.current = null;
+  };
 
   return (
     <>
@@ -596,12 +644,8 @@ export function ProductShowcaseSection({
                 <CarouselHeaderActions
                   currentPage={currentPage}
                   totalPages={Math.max(carouselPages.length, 1)}
-                  onPrevious={() => setActivePage((page) => Math.max(page - 1, 0))}
-                  onNext={() =>
-                    setActivePage((page) =>
-                      Math.min(page + 1, Math.max(carouselPages.length - 1, 0)),
-                    )
-                  }
+                  onPrevious={showPreviousPage}
+                  onNext={showNextPage}
                 />
               ) : section.viewAllLabel && section.viewAllHref ? (
                 <a
@@ -616,7 +660,14 @@ export function ProductShowcaseSection({
           ) : null}
 
           {isCarousel ? (
-            <div className={`${showHeader ? "mt-8" : ""} overflow-hidden`}>
+            <div
+              className={`${showHeader ? "mt-8" : ""} overflow-hidden touch-pan-y`}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
+              onPointerLeave={handlePointerEnd}
+            >
               <div
                 className="flex transition-transform duration-500 ease-out"
                 style={{ transform: `translateX(-${currentPage * 100}%)` }}

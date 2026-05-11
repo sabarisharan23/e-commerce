@@ -11,7 +11,7 @@ function SectionCard({
 }) {
   const cardClassName =
     accent === "yellow"
-      ? "bg-[#f4c91f] text-[#24304a]"
+      ? "bg-yellow-100 text-[#24304a]"
       : "border border-[#cedfc8] bg-white text-[#4f5f70]";
 
   return (

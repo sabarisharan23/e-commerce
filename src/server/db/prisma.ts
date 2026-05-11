@@ -10,6 +10,7 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    // Keep the adapter creation inline so a server recompilation recreates the client cleanly.
     adapter: new PrismaPg({
       connectionString: getRequiredServerEnv("DATABASE_URL"),
     }),

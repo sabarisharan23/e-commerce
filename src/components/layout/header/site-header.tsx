@@ -313,11 +313,12 @@ export function SiteHeader() {
               <LogoMark />
             </div>
 
-            <form className="w-full">
+            <form action="/products" method="get" className="w-full">
               <label className="flex h-12 w-full items-center gap-3 rounded-2xl bg-[#eef4fb] px-4 text-[#7d8da5]">
                 <SearchIcon />
                 <input
                   type="search"
+                  name="q"
                   placeholder="Search for fresh organic products..."
                   className="w-full border-none bg-transparent text-base text-[#25314a] outline-none placeholder:text-[#72819a]"
                 />
@@ -337,11 +338,12 @@ export function SiteHeader() {
             </div>
           </div>
 
-          <form className="mt-3 lg:hidden">
+          <form action="/products" method="get" className="mt-3 lg:hidden">
             <label className="flex h-11 w-full items-center gap-3 rounded-2xl bg-[#eef4fb] px-4 text-[#7d8da5]">
               <SearchIcon />
               <input
                 type="search"
+                name="q"
                 placeholder="Search for fresh organic products..."
                 className="w-full border-none bg-transparent text-sm text-[#25314a] outline-none placeholder:text-[#72819a]"
               />
@@ -352,13 +354,13 @@ export function SiteHeader() {
         <div className="hidden w-full px-4 py-3 sm:px-6 lg:block lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <button
-                type="button"
+              <Link
+                href="/products"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#4f7d49] px-6 text-base font-semibold text-white transition-colors hover:bg-[#41693c]"
               >
                 <MenuIcon />
                 <span>Browse Categories</span>
-              </button>
+              </Link>
 
               <nav
                 aria-label="Primary"
@@ -410,13 +412,14 @@ export function SiteHeader() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
-              <button
-                type="button"
+              <Link
+                href="/products"
+                onClick={() => setMobileMenuOpen(false)}
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#4f7d49] px-6 text-base font-semibold text-white transition-colors hover:bg-[#41693c]"
               >
                 <MenuIcon />
                 <span>Browse Categories</span>
-              </button>
+              </Link>
 
               <nav aria-label="Mobile Primary" className="mt-6 space-y-2">
                 {navItems.map((item) => (

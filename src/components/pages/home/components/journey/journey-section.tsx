@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/components/shared";
 import type { JourneyItem } from "./journey-data";
 
@@ -108,6 +108,8 @@ function chunkItems<T>(items: T[], size: number) {
   return chunks;
 }
 
+const SWIPE_THRESHOLD = 50;
+
 function formatPrice(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -126,6 +128,8 @@ export function JourneySection({ items }: JourneySectionProps) {
   const [activePage, setActivePage] = useState(0);
   const [cardsPerView, setCardsPerView] = useState(4);
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeCurrentXRef = useRef<number | null>(null);
 
   useEffect(() => {
     const updateCardsPerView = () => {
@@ -147,6 +151,48 @@ export function JourneySection({ items }: JourneySectionProps) {
   const selectedStory =
     items.find((item) => item.id === selectedStoryId) ?? null;
 
+  const showPreviousPage = () => {
+    setActivePage((page) => Math.max(page - 1, 0));
+  };
+
+  const showNextPage = () => {
+    setActivePage((page) => Math.min(page + 1, Math.max(pages.length - 1, 0)));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    swipeStartXRef.current = event.clientX;
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (swipeStartXRef.current === null) {
+      return;
+    }
+
+    swipeCurrentXRef.current = event.clientX;
+  };
+
+  const handlePointerEnd = () => {
+    if (swipeStartXRef.current === null || swipeCurrentXRef.current === null) {
+      swipeStartXRef.current = null;
+      swipeCurrentXRef.current = null;
+      return;
+    }
+
+    const swipeDistance = swipeStartXRef.current - swipeCurrentXRef.current;
+
+    if (Math.abs(swipeDistance) >= SWIPE_THRESHOLD) {
+      if (swipeDistance > 0) {
+        showNextPage();
+      } else {
+        showPreviousPage();
+      }
+    }
+
+    swipeStartXRef.current = null;
+    swipeCurrentXRef.current = null;
+  };
+
   return (
     <>
       <section className="relative overflow-hidden bg-[#f7f0db]">
@@ -161,22 +207,25 @@ export function JourneySection({ items }: JourneySectionProps) {
             <div className="hidden items-center gap-3 lg:flex">
               <ArrowButton
                 direction="left"
-                onClick={() => setActivePage((page) => Math.max(page - 1, 0))}
+                onClick={showPreviousPage}
                 disabled={currentPage === 0}
               />
               <ArrowButton
                 direction="right"
-                onClick={() =>
-                  setActivePage((page) =>
-                    Math.min(page + 1, Math.max(pages.length - 1, 0)),
-                  )
-                }
+                onClick={showNextPage}
                 disabled={currentPage === pages.length - 1}
               />
             </div>
           </div>
 
-          <div className="mt-8 overflow-hidden">
+          <div
+            className="mt-8 overflow-hidden touch-pan-y"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            onPointerLeave={handlePointerEnd}
+          >
             <div
               className="flex transition-transform duration-500 ease-out"
               style={{ transform: `translateX(-${currentPage * 100}%)` }}

@@ -2,7 +2,13 @@ import { randomUUID } from "crypto";
 
 import { prisma } from "../db/prisma";
 import { apiErrors } from "../http/api-error";
+import { serverLogger } from "../observability/logger";
 import { hashPassword, verifyPassword } from "../security/password";
+import {
+  readDevAuthUsers,
+  writeDevAuthUsers,
+  type DevAuthUserRecord,
+} from "./dev-auth-store";
 
 export type AuthUserDto = {
   id: string;
@@ -26,6 +32,23 @@ export type SignUpPayload = {
   name?: unknown;
   email?: unknown;
   password?: unknown;
+};
+
+type UserRecord = {
+  id: string;
+  authId: string;
+  email: string;
+  passwordHash: string | null;
+  name: string;
+  phone: string | null;
+  membership: string;
+  communicationPreference: string | null;
+  addressLabel: string | null;
+  addressLines: unknown;
+  avatarInitials: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  lastLoginAt: Date | null;
 };
 
 const demoAccount = {
@@ -69,18 +92,7 @@ function formatMemberSince(date: Date) {
   }).format(date);
 }
 
-function toAuthUserDto(user: {
-  addressLabel: string | null;
-  addressLines: unknown;
-  authId: string;
-  avatarInitials: string | null;
-  communicationPreference: string | null;
-  createdAt: Date;
-  email: string;
-  membership: string;
-  name: string;
-  phone: string | null;
-}): AuthUserDto {
+function toAuthUserDto(user: UserRecord): AuthUserDto {
   return {
     addressLabel: user.addressLabel ?? "Home Address",
     addressLines: readAddressLines(user.addressLines),
@@ -94,6 +106,138 @@ function toAuthUserDto(user: {
     name: user.name,
     phone: user.phone ?? "",
   };
+}
+
+function fromDevAuthUser(user: DevAuthUserRecord): UserRecord {
+  return {
+    ...user,
+    createdAt: new Date(user.createdAt),
+    lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt) : null,
+    updatedAt: new Date(user.updatedAt),
+  };
+}
+
+function toDevAuthUser(user: UserRecord): DevAuthUserRecord {
+  return {
+    ...user,
+    createdAt: user.createdAt.toISOString(),
+    lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
+function shouldUseDevAuthStore(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    /EACCES|ECONNREFUSED|ENOTFOUND|Can't reach database server|connect/i.test(message) ||
+    /Cannot read properties of undefined \(reading '(findUnique|create|update)'\)/i.test(
+      message,
+    )
+  );
+}
+
+async function withAuthStoreFallback<T>(action: () => Promise<T>, fallback: () => Promise<T>) {
+  try {
+    return await action();
+  } catch (error) {
+    if (!shouldUseDevAuthStore(error)) {
+      throw error;
+    }
+
+    serverLogger.warn(
+      "Database unavailable for auth flow. Falling back to local development auth store.",
+      { error: error instanceof Error ? error.message : String(error) },
+    );
+
+    return fallback();
+  }
+}
+
+async function findUserByEmail(email: string) {
+  return withAuthStoreFallback(
+    async () =>
+      prisma.user.findUnique({
+        where: { email },
+      }),
+    async () => {
+      const users = await readDevAuthUsers();
+      const user = users.find((entry) => entry.email === email);
+      return user ? fromDevAuthUser(user) : null;
+    },
+  );
+}
+
+async function findUserByAuthId(authId: string) {
+  return withAuthStoreFallback(
+    async () =>
+      prisma.user.findUnique({
+        where: {
+          authId,
+        },
+      }),
+    async () => {
+      const users = await readDevAuthUsers();
+      const user = users.find((entry) => entry.authId === authId);
+      return user ? fromDevAuthUser(user) : null;
+    },
+  );
+}
+
+async function createUser(data: Omit<UserRecord, "id" | "createdAt" | "updatedAt">) {
+  return withAuthStoreFallback(
+    async () =>
+      prisma.user.create({
+        data,
+      }),
+    async () => {
+      const users = await readDevAuthUsers();
+      const now = new Date();
+      const user: UserRecord = {
+        ...data,
+        createdAt: now,
+        id: `dev-user-${randomUUID()}`,
+        updatedAt: now,
+      };
+
+      users.push(toDevAuthUser(user));
+      await writeDevAuthUsers(users);
+
+      return user;
+    },
+  );
+}
+
+async function updateUser(id: string, data: Partial<UserRecord>) {
+  return withAuthStoreFallback(
+    async () =>
+      prisma.user.update({
+        data,
+        where: {
+          id,
+        },
+      }),
+    async () => {
+      const users = await readDevAuthUsers();
+      const index = users.findIndex((entry) => entry.id === id);
+
+      if (index < 0) {
+        throw apiErrors.notFound("User not found.");
+      }
+
+      const current = fromDevAuthUser(users[index]);
+      const nextUser: UserRecord = {
+        ...current,
+        ...data,
+        updatedAt: new Date(),
+      };
+
+      users[index] = toDevAuthUser(nextUser);
+      await writeDevAuthUsers(users);
+
+      return nextUser;
+    },
+  );
 }
 
 function normalizeCredentials(payload: SignInPayload | SignUpPayload) {
@@ -117,8 +261,7 @@ function normalizeCredentials(payload: SignInPayload | SignUpPayload) {
 }
 
 async function createDemoAccount(password: string) {
-  return prisma.user.create({
-    data: {
+  return createUser({
       addressLabel: "Home Address",
       addressLines: [
         "123 Sunset Boulevard, Apartment 4B",
@@ -133,7 +276,6 @@ async function createDemoAccount(password: string) {
       passwordHash: await hashPassword(password),
       phone: "+1 (555) 000-1234",
       lastLoginAt: new Date(),
-    },
   });
 }
 
@@ -147,9 +289,7 @@ export async function signUpUser(payload: SignUpPayload): Promise<AuthUserDto> {
     });
   }
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
+  const existingUser = await findUserByEmail(email);
   const passwordHash = await hashPassword(password);
 
   if (existingUser?.passwordHash) {
@@ -157,28 +297,24 @@ export async function signUpUser(payload: SignUpPayload): Promise<AuthUserDto> {
   }
 
   const user = existingUser
-    ? await prisma.user.update({
-        data: {
-          avatarInitials: existingUser.avatarInitials ?? createInitials(name),
-          lastLoginAt: new Date(),
-          name,
-          passwordHash,
-        },
-        where: {
-          id: existingUser.id,
-        },
+    ? await updateUser(existingUser.id, {
+        avatarInitials: existingUser.avatarInitials ?? createInitials(name),
+        lastLoginAt: new Date(),
+        name,
+        passwordHash,
       })
-    : await prisma.user.create({
-        data: {
-          authId: `member-${randomUUID()}`,
-          avatarInitials: createInitials(name),
-          communicationPreference: "Email, Push Notifications",
-          email,
-          membership: "Standard Member",
-          name,
-          passwordHash,
-          lastLoginAt: new Date(),
-        },
+    : await createUser({
+        authId: `member-${randomUUID()}`,
+        avatarInitials: createInitials(name),
+        communicationPreference: "Email, Push Notifications",
+        email,
+        lastLoginAt: new Date(),
+        membership: "Standard Member",
+        name,
+        passwordHash,
+        phone: null,
+        addressLabel: null,
+        addressLines: [],
       });
 
   return toAuthUserDto(user);
@@ -187,9 +323,7 @@ export async function signUpUser(payload: SignUpPayload): Promise<AuthUserDto> {
 export async function signInUser(payload: SignInPayload): Promise<AuthUserDto> {
   const { email, password } = normalizeCredentials(payload);
   const lookupEmail = demoLoginAliases.has(email) ? demoAccount.email : email;
-  let user = await prisma.user.findUnique({
-    where: { email: lookupEmail },
-  });
+  let user = await findUserByEmail(lookupEmail);
 
   if (!user && demoLoginAliases.has(email) && password === demoAccount.password) {
     user = await createDemoAccount(password);
@@ -205,24 +339,15 @@ export async function signInUser(payload: SignInPayload): Promise<AuthUserDto> {
     throw apiErrors.unauthorized("Email or password is incorrect.");
   }
 
-  const updatedUser = await prisma.user.update({
-    data: {
-      lastLoginAt: new Date(),
-    },
-    where: {
-      id: user.id,
-    },
+  const updatedUser = await updateUser(user.id, {
+    lastLoginAt: new Date(),
   });
 
   return toAuthUserDto(updatedUser);
 }
 
 export async function getAuthUserByAuthId(authId: string): Promise<AuthUserDto | null> {
-  const user = await prisma.user.findUnique({
-    where: {
-      authId: authId.trim(),
-    },
-  });
+  const user = await findUserByAuthId(authId.trim());
 
   return user ? toAuthUserDto(user) : null;
 }
