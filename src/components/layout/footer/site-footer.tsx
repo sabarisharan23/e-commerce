@@ -114,7 +114,7 @@ function FooterLogo() {
   return (
     <Link href="/" className="inline-flex items-center" aria-label="Theni Store home">
       <Image
-        src="/images/logo.png"
+        src="/images/logos.png"
         alt="Theni Store"
         width={2458}
         height={1745}

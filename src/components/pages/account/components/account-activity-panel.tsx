@@ -94,7 +94,7 @@ export function AccountActivityPanel({
   orders?: AccountOrderApiDto[];
 }) {
   const activities = orders ? getOrderActivity(orders) : accountActivity;
-
+const [showAll, setShowAll] = useState(false);
   return (
     <>
       <section className="overflow-hidden rounded-[2rem] border border-[#edf1f6] bg-white shadow-[0_20px_60px_rgba(20,31,56,0.06)]">

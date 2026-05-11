@@ -51,6 +51,40 @@ function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5 stroke-current"
+      fill="none"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4 stroke-current"
+      fill="none"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
 function getStatusLabel(status: OrderStatus) {
   if (status === "in-progress") {
     return "In Progress";
@@ -237,10 +271,12 @@ export function AccountOrderHistory({
 }: AccountOrderHistoryProps = {}) {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const [currentPage, setCurrentPage] = useState(1);
   const [fetchedOrders, setFetchedOrders] = useState<OrderHistoryRecord[]>([]);
   const [fetchedIsLoading, setFetchedIsLoading] = useState(false);
   const [fetchedError, setFetchedError] = useState<string | null>(null);
+  const [isReferDialogOpen, setIsReferDialogOpen] = useState(false);
   const providedRecords = useMemo(
     () => providedOrders?.map(toOrderHistoryRecord),
     [providedOrders],
@@ -248,6 +284,22 @@ export function AccountOrderHistory({
   const orders = providedRecords ?? fetchedOrders;
   const isLoading = providedRecords ? Boolean(providedIsLoading) : fetchedIsLoading;
   const error = providedRecords ? providedError ?? null : fetchedError;
+  const referrerName = user?.name.trim() || "Theni Customer";
+  const referralLink = useMemo(() => {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+    const params = new URLSearchParams({ ref: referrerName });
+
+    return `${origin}/?${params.toString()}`;
+  }, [referrerName]);
+
+  async function copyReferralLink() {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+  }
 
   useEffect(() => {
     if (providedOrders) {
@@ -433,6 +485,10 @@ export function AccountOrderHistory({
           </p>
           <button
             type="button"
+            onClick={() => {
+              setCopyStatus("idle");
+              setIsReferDialogOpen(true);
+            }}
             className="mt-7 inline-flex h-12 items-center justify-center rounded-2xl bg-white px-6 text-sm font-semibold text-[#487540] transition-colors hover:bg-[#f6fbf2]"
           >
             Refer a Friend
@@ -451,6 +507,96 @@ export function AccountOrderHistory({
           </svg>
         </div>
       </section>
+
+      {isReferDialogOpen ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 px-4 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="refer-dialog-title"
+        >
+          <button
+            type="button"
+            aria-label="Close referral popup"
+            className="absolute inset-0"
+            onClick={() => setIsReferDialogOpen(false)}
+          />
+
+          <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-[#edf1f6] px-6 py-5 sm:px-7">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f19a24]">
+                  Refer a Friend
+                </p>
+                <h3
+                  id="refer-dialog-title"
+                  className="mt-2 text-2xl font-semibold tracking-tight text-[#1a2540]"
+                >
+                  Share your Theni Stores link
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close referral popup"
+                onClick={() => setIsReferDialogOpen(false)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e3e9f1] text-[#617089] transition-colors hover:bg-[#f8fafc]"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-6 py-6 sm:px-7">
+              <p className="text-base leading-7 text-[#617089]">
+                Send this referral link to a friend. It includes your name,
+                <span className="font-semibold text-[#1f2c47]"> {referrerName}</span>,
+                so we can credit your reward points after their first order.
+              </p>
+
+              <div>
+                <label
+                  htmlFor="referral-link"
+                  className="text-sm font-semibold text-[#1f2c47]"
+                >
+                  Your referral link
+                </label>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    id="referral-link"
+                    readOnly
+                    value={referralLink}
+                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-[#dbe3ee] bg-[#f8fafc] px-4 text-sm font-semibold text-[#1f2c47] outline-none focus:border-[#487540]"
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={copyReferralLink}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#487540] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#3d6437]"
+                  >
+                    <CopyIcon />
+                    {copyStatus === "copied" ? "Copied" : "Copy Link"}
+                  </button>
+                </div>
+                {copyStatus === "failed" ? (
+                  <p className="mt-2 text-sm font-medium text-[#be3a45]">
+                    Could not copy automatically. Select the link above and copy it.
+                  </p>
+                ) : null}
+              </div>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Shop at Theni Stores with ${referrerName}: ${referralLink}`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-[#dbe3ee] px-5 text-sm font-semibold text-[#1f2c47] transition-colors hover:bg-[#f8fafc]"
+              >
+                Share on WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
