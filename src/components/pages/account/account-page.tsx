@@ -29,7 +29,7 @@ export function AccountPage({
 }) {
   const router = useRouter();
   const { isReady, user, signIn, signOut } = useAuth();
-  const [activeSection, setActiveSection] = useState<AccountSection>("profile");
+  const [activeSection, setActiveSection] = useState<AccountSection>(initialSection);
   const [accountOrders, setAccountOrders] = useState<AccountOrderApiDto[]>([]);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [ordersLoading, setOrdersLoading] = useState(false);
