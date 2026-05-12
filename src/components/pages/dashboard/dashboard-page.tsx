@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useAdminAuth } from "@/components/shared";
 import {
   countryPurchases,
   currentUsersBars,
@@ -579,6 +580,8 @@ function statusPillClass(type: string) {
 }
 
 export function DashboardPage() {
+  const router = useRouter();
+  const { isAuthenticated, isReady } = useAdminAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesRange, setSalesRange] = useState("Yearly");
 
@@ -589,6 +592,28 @@ export function DashboardPage() {
     }),
     [],
   );
+
+  useEffect(() => {
+    if (!isReady || isAuthenticated) {
+      return;
+    }
+
+    router.replace("/dashboard/login");
+  }, [isAuthenticated, isReady, router]);
+
+  if (!isReady || !isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] px-6">
+        <div className="w-full max-w-md rounded-[2rem] border border-[#e8edf4] bg-white p-8 text-center shadow-[0_18px_40px_rgba(20,31,56,0.06)]">
+          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-[#dce8d8] border-t-[#477640]" />
+          <h1 className="text-2xl font-bold text-[#1c2740]">Preparing admin workspace...</h1>
+          <p className="mt-2 text-sm text-[#6f7d92]">
+            We are checking your session and getting the dashboard ready.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f8fc] text-[#17213d]">

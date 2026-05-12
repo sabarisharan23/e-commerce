@@ -40,10 +40,17 @@ type CheckoutPageProps = {
 type OrderSnapshot = {
   id: string;
   items: HydratedCartItem[];
+  paymentMethod: PaymentMethod;
   subtotal: number;
   deliveryFee: number;
   tax: number;
   total: number;
+};
+
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+  card: "Card",
+  wallet: "Wallet",
+  cod: "Cash on Delivery",
 };
 
 function CardIcon() {
@@ -376,59 +383,82 @@ function EmptyCheckoutState() {
 
 function OrderConfirmation({ order }: { order: OrderSnapshot }) {
   return (
-    <div className="mx-auto max-w-3xl rounded-lg border border-[#e5e8ee] bg-white px-6 py-10 shadow-sm sm:px-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#edf4ea] text-[#4f7d49]">
-          <CheckIcon />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#554ee8]">
-            Order placed
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#20232d]">
-            Thanks for your order
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#17213d]/45 px-4 py-6 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-placed-title"
+        className="mx-auto my-6 max-w-3xl overflow-hidden rounded-lg border border-[#e5e8ee] bg-white text-center shadow-[0_24px_70px_rgba(23,33,61,0.24)]"
+      >
+        <div className="px-6 py-10 sm:px-10 sm:py-12">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#edf4ea] text-[#3f7039]">
+            <CheckIcon />
+          </div>
+          <h1
+            id="order-placed-title"
+            className="mt-7 text-3xl font-semibold tracking-tight text-[#17213d] sm:text-4xl"
+          >
+            Your order is placed!
           </h1>
-          <p className="mt-3 text-sm leading-6 text-[#6d7788]">
-            Order {order.id} is confirmed. We have cleared the cart and prepared
-            the checkout summary below.
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#60708a]">
+            Your order has been confirmed and is being processed. We have sent
+            the order details to your email address.
           </p>
-        </div>
-      </div>
 
-      <div className="mt-8 rounded-lg border border-[#edf0f4] bg-[#f8fafc] p-5">
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-sm font-semibold text-[#6d7788]">Order total</span>
-          <span className="text-xl font-bold text-[#20232d]">
-            {formatPrice(order.total)}
-          </span>
-        </div>
-        <div className="mt-5 space-y-3">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-4">
-              <span className="min-w-0 truncate text-sm font-medium text-[#20232d]">
-                {item.name} x {item.quantity}
-              </span>
-              <span className="shrink-0 text-sm font-semibold text-[#20232d]">
-                {formatPrice(item.price * item.quantity)}
-              </span>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-[#e7ebf1] bg-[#f8f8fb] p-5 text-left">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#64748b]">
+                Order Number
+              </p>
+              <p className="mt-3 text-base font-bold text-[#17213d]">{order.id}</p>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="rounded-lg border border-[#e7ebf1] bg-[#f8f8fb] p-5 text-left">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#64748b]">
+                Order Total
+              </p>
+              <p className="mt-3 text-base font-bold text-[#17213d]">
+                {formatPrice(order.total)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#e7ebf1] bg-[#f8f8fb] p-5 text-left">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#64748b]">
+                Payment Method
+              </p>
+              <p className="mt-3 text-base font-bold text-[#17213d]">
+                {paymentMethodLabels[order.paymentMethod]}
+              </p>
+            </div>
+          </div>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link
-          href="/products"
-          className="inline-flex h-12 items-center justify-center rounded-lg bg-[#4f7d49] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#41693c]"
-        >
-          Continue Shopping
-        </Link>
-        <Link
-          href="/account"
-          className="inline-flex h-12 items-center justify-center rounded-lg border border-[#d9dee8] px-6 text-sm font-semibold text-[#20232d] transition-colors hover:border-[#bfc7d5] hover:bg-[#f8fafc]"
-        >
-          View Account
-        </Link>
+          <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              href="/info/order-tracking"
+              className="inline-flex h-12 items-center justify-center rounded-lg bg-[#3f7039] px-7 text-sm font-semibold text-white transition-colors hover:bg-[#356130]"
+            >
+              Track Order
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex h-12 items-center justify-center rounded-lg bg-[#f0f3f7] px-7 text-sm font-semibold text-[#20232d] transition-colors hover:bg-[#e7ebf1]"
+            >
+              Back to Home
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 border-t border-[#e7ebf1] bg-[#f2f4f8] px-6 py-6 text-sm font-semibold text-[#3f7039] sm:flex-row sm:items-center sm:justify-between sm:px-10">
+          <p className="text-left text-[#60708a]">
+            Need assistance? Our support team is available 24/7.
+          </p>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/info/contact-support" className="hover:text-[#315b2d]">
+              Contact Support
+            </Link>
+            <Link href="/info/faqs" className="hover:text-[#315b2d]">
+              FAQ
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -480,6 +510,7 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
     setCompletedOrder({
       id: `TS-${Date.now().toString().slice(-7)}`,
       items: hydratedItems,
+      paymentMethod,
       subtotal,
       deliveryFee,
       tax,
@@ -506,7 +537,7 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
                   Secure Checkout
                 </p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#20232d] sm:text-4xl">
-                  Shipping & Payment
+                  Billing & Payment
                 </h1>
               </div>
               <Link
@@ -524,7 +555,7 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
               <div className="space-y-6">
                 <section className="rounded-lg border border-[#e5e8ee] bg-white p-5 shadow-sm sm:p-6">
                   <h2 className="text-lg font-semibold tracking-tight text-[#20232d]">
-                    Shipping Address
+                    Billing Address
                   </h2>
 
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -668,7 +699,7 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
                         Cash on delivery selected
                       </p>
                       <p className="mt-1 text-sm leading-6 text-[#6d7788]">
-                        Pay when your order arrives at the shipping address.
+                        Pay when your order arrives at the billing address.
                       </p>
                     </div>
                   ) : null}

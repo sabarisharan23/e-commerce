@@ -195,7 +195,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-3 py-3 sm:px-4 lg:px-6"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-3 py-3"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
@@ -207,7 +207,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         onClick={onClose}
       />
 
-      <div className="relative grid max-h-[90vh] w-full max-w-[960px] overflow-y-auto rounded-[1.15rem] bg-[#050505] shadow-2xl xl:grid-cols-[44%_56%]">
+      <div className="relative grid max-h-[calc(100vh-1.5rem)] w-full max-w-[780px] overflow-hidden rounded-[1.15rem] bg-[#050505] shadow-2xl lg:grid-cols-[38%_62%]">
         <button
           type="button"
           aria-label="Close login popup"
@@ -218,24 +218,24 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         </button>
 
         <div
-          className="relative min-h-[180px] overflow-hidden bg-black bg-left-top bg-cover bg-no-repeat sm:min-h-[220px] xl:min-h-full xl:bg-left"
+          className="relative hidden min-h-full overflow-hidden bg-black bg-left bg-cover bg-no-repeat lg:block"
           style={{ backgroundImage: "url('/auth/login-container.png')" }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent lg:hidden" />
-          <div className="relative z-10 flex h-full min-h-[180px] flex-col justify-end px-5 py-5 text-white sm:min-h-[220px] sm:px-6 xl:hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+          <div className="relative z-10 flex h-full flex-col justify-end px-5 py-6 text-white">
             <p className="text-base font-extrabold text-white sm:text-lg">Theni Store</p>
-            <h3 className="mt-2 max-w-sm text-2xl font-extrabold leading-tight sm:text-3xl">
+            <h3 className="mt-2 max-w-sm text-2xl font-extrabold leading-tight">
               Fresh from Farm to Your Kitchen
             </h3>
-            <p className="mt-2 max-w-md text-sm font-medium leading-6 text-white/85">
+            <p className="mt-2 max-w-md text-sm font-medium leading-5 text-white/85">
               Enjoy naturally grown millets, flours, and health mixes made for
               everyday meals.
             </p>
           </div>
         </div>
 
-        <section className="flex min-h-0 flex-col bg-[#050505] px-5 py-6 text-white sm:px-7 sm:py-7 xl:px-12 xl:py-10">
-          <div className="mb-6 grid grid-cols-2 border-b border-white/80 text-sm font-semibold">
+        <section className="flex min-h-0 flex-col bg-[#050505] px-5 py-5 text-white sm:px-7 lg:px-8">
+          <div className="mb-4 grid grid-cols-2 border-b border-white/80 text-sm font-semibold">
             <button
               type="button"
               className={`pb-4 text-center transition-colors ${
@@ -277,19 +277,19 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           <div>
             <h2
               id="auth-modal-title"
-              className="text-2xl font-extrabold leading-tight text-white sm:text-[2rem] xl:text-[2.5rem]"
+              className="text-2xl font-extrabold leading-tight text-white sm:text-[1.9rem]"
             >
               {isLogin ? "Welcome Back" : "Create Account"}
             </h2>
-            <p className="mt-2 max-w-md text-sm font-medium leading-6 text-[#9dadc6] sm:text-[0.95rem]">
+            <p className="mt-1.5 max-w-md text-sm font-medium leading-5 text-[#9dadc6]">
               {isLogin
                 ? "Enter your details to manage your orders and explore fresh arrivals."
                 : "Join Theni Store to save your details, track orders, and discover fresh arrivals."}
             </p>
           </div>
 
-          <div className="mt-5 rounded-[1.35rem] border border-[#36562f] bg-[#0d1c0b] px-4 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mt-4 rounded-[1.1rem] border border-[#36562f] bg-[#0d1c0b] px-4 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8ec584]">
                   Demo Login
@@ -311,14 +311,14 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   setPasswordVisible(false);
                   setErrorMessage("");
                 }}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#477640] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#3a6335]"
+                className="inline-flex h-9 items-center justify-center rounded-xl bg-[#477640] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#3a6335]"
               >
                 Use Demo Account
               </button>
             </div>
           </div>
 
-          <form className="mt-6 space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+          <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
             {!isLogin ? (
               <label className="block">
                 <span className="text-sm font-semibold text-[#dce6f5]">
@@ -329,7 +329,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   autoComplete="name"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20 sm:text-base"
+                  className="mt-1.5 h-10 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20"
                 />
               </label>
             ) : null}
@@ -343,7 +343,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                 autoComplete={isLogin ? "email" : "username"}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20 sm:text-base"
+                className="mt-1.5 h-10 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20"
               />
             </label>
 
@@ -359,13 +359,13 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   </button>
                 ) : null}
               </span>
-              <span className="mt-2 flex h-11 items-center rounded-xl border border-[#dce5ef] bg-white pr-2 transition-colors focus-within:border-[#4f7d49] focus-within:ring-2 focus-within:ring-[#4f7d49]/20">
+              <span className="mt-1.5 flex h-10 items-center rounded-xl border border-[#dce5ef] bg-white pr-2 transition-colors focus-within:border-[#4f7d49] focus-within:ring-2 focus-within:ring-[#4f7d49]/20">
                 <input
                   type={passwordVisible ? "text" : "password"}
                   autoComplete={isLogin ? "current-password" : "new-password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="h-full min-w-0 flex-1 rounded-xl border-none bg-transparent px-4 text-sm text-[#16213b] outline-none sm:text-base"
+                  className="h-full min-w-0 flex-1 rounded-xl border-none bg-transparent px-4 text-sm text-[#16213b] outline-none"
                 />
                 <button
                   type="button"
@@ -388,7 +388,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="mt-2 h-11 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20 sm:text-base"
+                  className="mt-1.5 h-10 w-full rounded-xl border border-[#dce5ef] bg-white px-4 text-sm text-[#16213b] outline-none transition-colors focus:border-[#4f7d49] focus:ring-2 focus:ring-[#4f7d49]/20"
                 />
               </label>
             ) : null}
@@ -414,7 +414,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-11 w-full rounded-xl bg-[#477640] text-sm font-bold text-white transition-colors hover:bg-[#3a6335] disabled:cursor-not-allowed disabled:opacity-70 sm:text-base"
+              className="h-10 w-full rounded-xl bg-[#477640] text-sm font-bold text-white transition-colors hover:bg-[#3a6335] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting
                 ? isLogin
@@ -426,20 +426,20 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </button>
           </form>
 
-          <div className="my-6 flex items-center gap-3 sm:my-7">
+          <div className="my-4 flex items-center gap-3">
             <span className="h-px flex-1 bg-white/75" />
-            <span className="rounded-sm bg-white px-4 py-1 text-xs font-medium text-[#60708e] sm:px-5 sm:text-sm">
+            <span className="rounded-sm bg-white px-4 py-1 text-xs font-medium text-[#60708e]">
               Or continue with
             </span>
             <span className="h-px flex-1 bg-white/75" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               disabled={isSubmitting}
               onClick={handleDemoProviderLogin}
-              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70 sm:h-11"
+              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70"
             >
               <GoogleIcon />
               <span>Google</span>
@@ -448,14 +448,14 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               type="button"
               disabled={isSubmitting}
               onClick={handleDemoProviderLogin}
-              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70 sm:h-11"
+              className="inline-flex h-10 items-center justify-center gap-3 rounded-xl border border-[#dce5ef] bg-white text-sm font-bold text-[#16213b] transition-colors hover:border-[#b8cfb2] disabled:cursor-not-allowed disabled:opacity-70"
             >
               <FacebookIcon />
               <span>Facebook</span>
             </button>
           </div>
 
-          <p className="mt-6 text-center text-sm font-semibold text-[#97a7c0]">
+          <p className="mt-4 text-center text-sm font-semibold text-[#97a7c0]">
             {isLogin ? "Not a member? " : "Already have an account? "}
             <button
               type="button"
@@ -481,7 +481,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </button>
           </p>
 
-          <footer className="mt-6 grid gap-3 border-t border-white/80 pt-5 text-[0.7rem] font-semibold text-[#97a7c0] sm:mt-auto sm:grid-cols-[1fr_auto] sm:items-center sm:text-xs">
+          <footer className="mt-4 grid gap-2 border-t border-white/80 pt-4 text-[0.7rem] font-semibold text-[#97a7c0] sm:mt-auto sm:grid-cols-[1fr_auto] sm:items-center sm:text-xs">
             <p>&copy; 2026 Theni Stores. All rights reserved.</p>
             <div className="flex flex-wrap gap-5">
               <Link
