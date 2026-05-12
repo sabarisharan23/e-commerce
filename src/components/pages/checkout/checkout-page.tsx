@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   useEffect,
   useMemo,
@@ -10,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { formatPrice } from "@/components/pages/cart/components/cart-shared";
-import { useCart, type ProductDetails } from "@/components/shared";
+import { useAuth, useCart, type ProductDetails } from "@/components/shared";
 import {
   getMissingStoredProductIds,
   hydrateCartItems,
@@ -46,6 +47,30 @@ type OrderSnapshot = {
   tax: number;
   total: number;
 };
+
+type CreateOrderResponse =
+  | {
+      data: {
+        deliveryFee: number;
+        discount: number;
+        orderNumber: string;
+        subtotal: number;
+        tax: number;
+        total: number;
+      };
+      success: true;
+    }
+  | { error: { message: string }; success: false };
+
+type OfferValidationResponse =
+  | {
+      data: {
+        code: string;
+        discount: number;
+      };
+      success: true;
+    }
+  | { error: { message: string }; success: false };
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   card: "Card",
@@ -270,14 +295,22 @@ function CheckoutSummary({
   items,
   subtotal,
   deliveryFee,
+  discount,
   tax,
   total,
+  error,
+  offerMessage,
+  isPlacingOrder,
 }: {
   items: HydratedCartItem[];
   subtotal: number;
   deliveryFee: number;
+  discount: number;
   tax: number;
   total: number;
+  error: string | null;
+  offerMessage: string | null;
+  isPlacingOrder: boolean;
 }) {
   return (
     <aside className="rounded-lg border border-[#e5e8ee] bg-white p-5 shadow-sm lg:sticky lg:top-6">
@@ -325,11 +358,25 @@ function CheckoutSummary({
             {deliveryFee === 0 ? "Free" : formatPrice(deliveryFee)}
           </span>
         </div>
+        {discount > 0 ? (
+          <div className="flex items-center justify-between gap-4">
+            <span>Discount</span>
+            <span className="font-semibold text-[#3f7039]">
+              - {formatPrice(discount)}
+            </span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-4">
           <span>Tax</span>
           <span className="font-semibold text-[#20232d]">{formatPrice(tax)}</span>
         </div>
       </div>
+
+      {offerMessage ? (
+        <p className="mt-3 rounded-lg bg-[#f8fafc] px-3 py-2 text-xs font-semibold text-[#60708a]">
+          {offerMessage}
+        </p>
+      ) : null}
 
       <div className="mt-5 flex items-center justify-between border-t border-[#eceff3] pt-5">
         <span className="text-base font-semibold text-[#20232d]">Total</span>
@@ -340,10 +387,17 @@ function CheckoutSummary({
 
       <button
         type="submit"
-        className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg bg-[#554ee8] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(85,78,232,0.22)] transition-colors hover:bg-[#4740cf] focus:outline-none focus:ring-2 focus:ring-[#554ee8]/35"
+        disabled={isPlacingOrder}
+        className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg bg-[#554ee8] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(85,78,232,0.22)] transition-colors hover:bg-[#4740cf] focus:outline-none focus:ring-2 focus:ring-[#554ee8]/35 disabled:cursor-not-allowed disabled:bg-[#9a97e9] disabled:shadow-none"
       >
-        Place Order
+        {isPlacingOrder ? "Placing Order..." : "Place Order"}
       </button>
+
+      {error ? (
+        <p className="mt-3 rounded-lg bg-[#fff1f2] px-3 py-2 text-sm font-semibold text-[#be3a45]">
+          {error}
+        </p>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-[#7c8494]">
         <span className="inline-flex items-center gap-1.5">
@@ -466,8 +520,19 @@ function OrderConfirmation({ order }: { order: OrderSnapshot }) {
 
 export function CheckoutPage({ products }: CheckoutPageProps) {
   const { items, removeItems, clearCart } = useCart();
+  const { isReady, user } = useAuth();
+  const searchParams = useSearchParams();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [completedOrder, setCompletedOrder] = useState<OrderSnapshot | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [appliedOffer, setAppliedOffer] = useState<{
+    code: string;
+    discount: number;
+  } | null>(null);
+  const [offerMessage, setOfferMessage] = useState<string | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const requestedOfferCode =
+    searchParams.get("offerCode")?.trim().toUpperCase() ?? "";
   const hydratedItems = useMemo(
     () => hydrateCartItems(items, products),
     [items, products],
@@ -488,11 +553,12 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
     subtotal >= FREE_DELIVERY_THRESHOLD || hydratedItems.length === 0
       ? 0
       : STANDARD_DELIVERY_FEE;
+  const discount = appliedOffer?.discount ?? 0;
   const tax = useMemo(
-    () => Math.round(subtotal * TAX_RATE * 100) / 100,
-    [subtotal],
+    () => Math.round(Math.max(subtotal - discount, 0) * TAX_RATE * 100) / 100,
+    [discount, subtotal],
   );
-  const total = subtotal + deliveryFee + tax;
+  const total = Math.max(subtotal - discount + deliveryFee + tax, 0);
 
   useEffect(() => {
     if (missingProductIds.length > 0) {
@@ -500,24 +566,123 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
     }
   }, [missingProductIds, removeItems]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (!requestedOfferCode || subtotal <= 0 || hydratedItems.length === 0) {
+      return;
+    }
+
+    let active = true;
+
+    fetch("/api/v1/offers/validate", {
+      body: JSON.stringify({ code: requestedOfferCode, subtotal }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as OfferValidationResponse;
+
+        if (!response.ok || !body.success) {
+          throw new Error(
+            body.success ? "Coupon could not be applied." : body.error.message,
+          );
+        }
+
+        if (active) {
+          setAppliedOffer({
+            code: body.data.code,
+            discount: body.data.discount,
+          });
+          setOfferMessage(`Coupon ${body.data.code} applied.`);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setAppliedOffer(null);
+          setOfferMessage(
+            error instanceof Error ? error.message : "Coupon could not be applied.",
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hydratedItems.length, requestedOfferCode, subtotal]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setCheckoutError(null);
 
     if (hydratedItems.length === 0) {
       return;
     }
 
-    setCompletedOrder({
-      id: `TS-${Date.now().toString().slice(-7)}`,
-      items: hydratedItems,
-      paymentMethod,
-      subtotal,
-      deliveryFee,
-      tax,
-      total,
-    });
-    clearCart();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!isReady) {
+      setCheckoutError("Checking your account session. Please try again in a moment.");
+      return;
+    }
+
+    if (!user) {
+      setCheckoutError("Please sign in before placing your order.");
+      return;
+    }
+
+    setIsPlacingOrder(true);
+
+    try {
+      const response = await fetch("/api/v1/orders", {
+        body: JSON.stringify({
+          deliveryFee,
+          items: hydratedItems.map((item) => ({
+            id: item.id,
+            quantity: item.quantity,
+          })),
+          offerCode: appliedOffer?.code,
+          tax,
+          user: {
+            addressLabel: user.addressLabel,
+            addressLines: user.addressLines,
+            authId: user.id,
+            avatarInitials: user.avatarInitials,
+            communicationPreference: user.communicationPreference,
+            email: user.email,
+            membership: user.membership,
+            name: user.name,
+            phone: user.phone,
+          },
+        }),
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const body = (await response.json()) as CreateOrderResponse;
+
+      if (!response.ok || !body.success) {
+        throw new Error(body.success ? "Checkout failed." : body.error.message);
+      }
+
+      setCompletedOrder({
+        id: body.data.orderNumber,
+        items: hydratedItems,
+        paymentMethod,
+        subtotal: body.data.subtotal,
+        deliveryFee: body.data.deliveryFee,
+        tax: body.data.tax,
+        total: body.data.total,
+      });
+      clearCart();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error ? error.message : "Checkout failed. Please try again.",
+      );
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   return (
@@ -710,8 +875,12 @@ export function CheckoutPage({ products }: CheckoutPageProps) {
                 items={hydratedItems}
                 subtotal={subtotal}
                 deliveryFee={deliveryFee}
+                discount={discount}
                 tax={tax}
                 total={total}
+                error={checkoutError}
+                offerMessage={offerMessage}
+                isPlacingOrder={isPlacingOrder}
               />
             </form>
           </>

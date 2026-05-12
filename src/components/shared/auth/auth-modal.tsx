@@ -288,35 +288,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </p>
           </div>
 
-          <div className="mt-4 rounded-[1.1rem] border border-[#36562f] bg-[#0d1c0b] px-4 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8ec584]">
-                  Demo Login
-                </p>
-                <p className="mt-1 text-sm font-medium text-white/90">
-                  {DEMO_CREDENTIALS.email}
-                </p>
-                <p className="mt-1 text-sm font-medium text-white/90">
-                  {DEMO_CREDENTIALS.password}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setEmail(DEMO_CREDENTIALS.email);
-                  setPassword(DEMO_CREDENTIALS.password);
-                  setConfirmPassword(DEMO_CREDENTIALS.password);
-                  setPasswordVisible(false);
-                  setErrorMessage("");
-                }}
-                className="inline-flex h-9 items-center justify-center rounded-xl bg-[#477640] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#3a6335]"
-              >
-                Use Demo Account
-              </button>
-            </div>
-          </div>
+       
 
           <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
             {!isLogin ? (

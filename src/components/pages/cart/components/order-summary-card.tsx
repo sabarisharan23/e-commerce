@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { formatPrice } from "./cart-shared";
 
 function ShieldIcon() {
@@ -61,15 +63,13 @@ export function OrderSummaryCard({
   deliveryFee,
   tax,
   discount,
-  isCheckingOut = false,
-  onCheckout,
+  checkoutHref = "/checkout",
 }: {
   subtotal: number;
   deliveryFee: number;
   tax: number;
   discount: number;
-  isCheckingOut?: boolean;
-  onCheckout?: () => void;
+  checkoutHref?: string;
 }) {
   const total = subtotal + deliveryFee + tax - discount;
 
@@ -111,15 +111,13 @@ export function OrderSummaryCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        disabled={isCheckingOut}
-        onClick={onCheckout}
+      <Link
+        href={checkoutHref}
         className="mt-8 inline-flex h-14 w-full items-center justify-center gap-3 rounded-[18px] bg-[#4f7d49] px-6 text-[1.05rem] font-semibold text-white shadow-[0_18px_32px_rgba(79,125,73,0.25)] transition-colors hover:bg-[#41693c]"
       >
-        <span>{isCheckingOut ? "Placing Order..." : "Proceed to Checkout"}</span>
+        <span>Proceed to Checkout</span>
         <ArrowRightIcon />
-      </button>
+      </Link>
 
       <div className="mt-6 space-y-3 text-sm text-[#7d8ea7]">
         <div className="flex items-center gap-2">

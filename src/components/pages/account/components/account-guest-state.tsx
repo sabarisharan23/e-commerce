@@ -41,15 +41,7 @@ export function AccountGuestState({ onDemoLogin }: AccountGuestStateProps) {
           logged-in experience.
         </p>
 
-        <div className="mt-7 rounded-[1.5rem] bg-[#f8fafc] px-5 py-4 text-left">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#7b89a0]">
-            Demo Login
-          </p>
-          <p className="mt-2 text-base text-[#1f2c47]">
-            {DEMO_CREDENTIALS.email}
-          </p>
-          <p className="mt-1 text-base text-[#1f2c47]">{DEMO_CREDENTIALS.password}</p>
-        </div>
+       
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
